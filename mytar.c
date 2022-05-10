@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
   }
   
   if(c) {
-    ctar(argv[],char *path_list, vFlag, SFlag);
+    ctar(argv[], vFlag, SFlag);
 
   }
 
@@ -76,7 +76,19 @@ return 0;
 }
 
 /* Creates tar file with given path list */
-int ctar(char *argv[],char *path_list, int vFlag, int SFlag) {
+int ctar(char *argv[], int vFlag, int SFlag) {
+  int output; 
+  int i;
+
+  /* create the tar file */
+  if((output = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR)) == -1) {
+    perror("open");
+    exit(-1);
+  }
+  /* calls for each of the paths readCPath() */
+  for(i = 3; i < argc; i++){
+    readCPath(argv[i], output, vFlag, sFlag);
+  }
   
   // create the tar file 
   //check for v and S
@@ -85,7 +97,7 @@ int ctar(char *argv[],char *path_list, int vFlag, int SFlag) {
 }
 
 /* Reads all directories and files in path and calls other function createHeader for it */
-readCPath(){
+readCPath(char *path, int output, int vFlag, int SFlag){
   /* recursively goes through directories/files and calls createHeader() on everything */
   /* print out if v when you call createHeader() */
   createHeader(); 
