@@ -10,7 +10,6 @@ int main(int argc, char *argv[]) {
   int c = 0, t = 0, x = 0;
   int v = 0, f= 0, S = 0;
   int i = 0;
-  char *path_list[10]; /* list to hold paths */
 
   if(argc < 3)  {
     printf ("Missing argument/s\n"); 
@@ -71,7 +70,7 @@ int main(int argc, char *argv[]) {
       exit(-1);
     }
     //check here that we have an argv[3] or else say we need a path 
-    ctar(argv[], v, S);
+    ctar(argc, argv, v, S);
 
   }
   else if(x || t){
@@ -82,7 +81,7 @@ return 0;
 }
 
 /* Creates tar file with given path list */
-void ctar(char *argv[], int v, int S) {
+void ctar(int argc, char *argv[], int v, int S) {
   int output; 
   int i;
   char block[BLOCK];
@@ -98,15 +97,18 @@ void ctar(char *argv[], int v, int S) {
   }
   /* calls for each of the paths readCPath() */
   for(i = 3; i < argc; i++){
-    readCPath(argv[i], output, v, s);
+    readCPath(argv[i], output, v, S);
   }
+  
   /* Write 2 null blocks at the end */
+  /*
   for(i = 0; i < 2; i++) {
     if(write(output, block, BLOCK)) {
       perror("write");
       exit(-1);
     }
   }
+  */
 }
 
 /* Recursively reads all directories and files in path 
@@ -117,7 +119,7 @@ void readCPath(char *path, int output, int v, int S){
   struct stat lst_b;
   struct stat st_b;
   struct dirent *entry;
-  char *pass_path;
+  // char *pass_path;
   
   /* getting information about link if link */
   if(lstat(path, &lst_b)){
@@ -141,24 +143,39 @@ void readCPath(char *path, int output, int v, int S){
   /* Directory condition */
   else if(S_ISDIR(st_b.st_mode)){
     /* Sym Link Directory */
-    if(S_ISLNK(lst_b.st_mode)){
+    if(S_ISLNK(lst_b.st_mode)){ 
       createHeader(&lst_b, path, output, v, S); 
     }
     createHeader(&st_b, path, output, v, S);
+    printf("%s\n", path);
+    printf("%s\n", getcwd(path, 500));
 
+    chdir(path);
+    if((d = opendir(".")) == NULL) {
+      perror("open");
+      exit(-1);
+    }
     /* now looping through directory to call readCPath on it and all its files */
     while((entry = readdir(d)) != NULL) {
-      pass_path = path;
-      strcat(pass_path, "/");
-      readCPath(strcat(pass_path, entry->d_name), output, v, S);
+      if(!strcmp(entry->d_name, ".") {
+
+      }
+      else if() {
+
+      }
+      else {
+        readCPath(entry->d_name, output, v, S); 
+        chdir("..");
+      }
     }
+    closedir(d);
   }
   else{
     printf("A file that it isn't supported with mytar was found.\n");
     printf("Mytar only supports regular files, directories, or sym links.\n");
   }
  
-} 
+}  
 
 /* Using given path, takes all data and puts it into a struct */
 /* struct that's a header- where we fill in the correct information */

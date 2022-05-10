@@ -1,6 +1,5 @@
 CC = gcc
 CFLAGS = -Wall -pedantic -g -O
-OBJS: mytar.o
 
 all: mytar
 mytar: mytar.o mytar.h
