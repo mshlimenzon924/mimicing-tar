@@ -68,8 +68,9 @@ int main(int argc, char *argv[]) {
     ctar(argv[], vFlag, SFlag);
 
   }
-  else if(x){}
-  else if(t){}
+  else if(x || t){
+
+  }
   
 return 0;
 }
@@ -118,7 +119,7 @@ createHeader() {
   /* if S then do weird stuff with magic number + version */
 }
 
-int xtar(..., char *path_list, int vFlag, int SFlag) {
+int x/ttar(..., char *path_list, int vFlag, int SFlag) {
   //given tar file 
   //check if given multiple paths or none!! 
   // given path - read header
