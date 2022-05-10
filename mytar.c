@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
   /* missing f */
-  if(f== 0) {
+  if(!f) {
     printf ("Missing -f\n"); 
     printf("Usage: mytar [ctxvS]f tarfile\n");
     exit(-1);
@@ -64,8 +64,13 @@ int main(int argc, char *argv[]) {
   }
   
   if(c) {
+    if(argc == 3) {
+      printf("No files or directories specified\n");
+      printf("Usage: mytar [ctxvS]f tarfile path\n");
+      exit(-1);
+    }
     //check here that we have an argv[3] or else say we need a path 
-    ctar(argv[], vFlag, SFlag);
+    ctar(argv[], v, S);
 
   }
   else if(x || t){
@@ -76,7 +81,7 @@ return 0;
 }
 
 /* Creates tar file with given path list */
-void ctar(char *argv[], int vFlag, int SFlag) {
+void ctar(char *argv[], int v, int S) {
   int output; 
   int i;
   char block[BLOCK];
@@ -92,7 +97,7 @@ void ctar(char *argv[], int vFlag, int SFlag) {
   }
   /* calls for each of the paths readCPath() */
   for(i = 3; i < argc; i++){
-    readCPath(argv[i], output, vFlag, sFlag);
+    readCPath(argv[i], output, v, s);
   }
   /* Write 2 null blocks at the end */
   for(i = 0; i < 2; i++) {
@@ -104,7 +109,7 @@ void ctar(char *argv[], int vFlag, int SFlag) {
 }
 
 /* Reads all directories and files in path and calls other function createHeader for it */
-readCPath(char *path, int output, int vFlag, int SFlag){
+readCPath(char *path, int output, int v, int S){
   
   
   /* recursively goes through directories/files and calls createHeader() on everything */
@@ -119,7 +124,7 @@ createHeader() {
   /* if S then do weird stuff with magic number + version */
 }
 
-int x/ttar(..., char *path_list, int vFlag, int SFlag) {
+int xttar(..., char *path_list, int v, int S) {
   //given tar file 
   //check if given multiple paths or none!! 
   // given path - read header
@@ -143,6 +148,6 @@ extractHeader() {
   //return that struct
 }
 
-int ttar(..., int vFlag, int SFlag) {
+int ttar(..., int v, int S) {
   //
 }
