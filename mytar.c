@@ -64,6 +64,7 @@ int main(int argc, char *argv[]) {
   }
   
   if(c) {
+    //check here that we have an argv[3] or else say we need a path 
     ctar(argv[], vFlag, SFlag);
 
   }
@@ -86,7 +87,7 @@ void ctar(char *argv[], int vFlag, int SFlag) {
   /* create the tar file */
   if((output = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR)) == -1) {
     perror("open");
-    exit(-1);
+    exit(-1);  mytar [ctxvS]f tarfile
   }
   /* calls for each of the paths readCPath() */
   for(i = 3; i < argc; i++){
