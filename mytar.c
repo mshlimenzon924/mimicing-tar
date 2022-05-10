@@ -147,28 +147,32 @@ void readCPath(char *path, int output, int v, int S){
       createHeader(&lst_b, path, output, v, S); 
     }
     createHeader(&st_b, path, output, v, S);
-    printf("%s\n", path);
-    printf("%s\n", getcwd(path, 500));
+    printf("path %s\n", path);
 
-    chdir(path);
+    if(chdir(path) == -1) {
+      perror("chdir");
+      exit(-1);
+    }
     if((d = opendir(".")) == NULL) {
       perror("open");
       exit(-1);
     }
+
     /* now looping through directory to call readCPath on it and all its files */
     while((entry = readdir(d)) != NULL) {
-      if(!strcmp(entry->d_name, ".") {
-
-      }
-      else if() {
-
-      }
-      else {
+      if(strcmp(entry->d_name, ".") || strcmp(entry->d_name, "..")){
+        printf("dname %s\n", entry->d_name);
         readCPath(entry->d_name, output, v, S); 
-        chdir("..");
+        if(chdir("..") == -1) {
+          perror("chdir");
+          exit(-1);
+        }
       }
     }
-    closedir(d);
+    if(closedir(d) == -1){
+      perror("close");
+      exit(-1);
+    }
   }
   else{
     printf("A file that it isn't supported with mytar was found.\n");
