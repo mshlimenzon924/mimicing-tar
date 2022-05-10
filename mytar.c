@@ -67,18 +67,21 @@ int main(int argc, char *argv[]) {
     ctar(argv[], vFlag, SFlag);
 
   }
-
-  if(x){}
-
-  if(t){}
+  else if(x){}
+  else if(t){}
   
 return 0;
 }
 
 /* Creates tar file with given path list */
-int ctar(char *argv[], int vFlag, int SFlag) {
+void ctar(char *argv[], int vFlag, int SFlag) {
   int output; 
   int i;
+  char block[BLOCK];
+  
+  for(i = 0; i < BLOCK; i++) {
+    block[i] = '\0';
+  }
 
   /* create the tar file */
   if((output = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR)) == -1) {
@@ -89,11 +92,13 @@ int ctar(char *argv[], int vFlag, int SFlag) {
   for(i = 3; i < argc; i++){
     readCPath(argv[i], output, vFlag, sFlag);
   }
-  
-  // create the tar file 
-  //check for v and S
-  //calls for each of the paths readPath(path);
-  //then writes the 2 null blocks at the end
+  /* Write 2 null blocks at the end */
+  for(i = 0; i < 2; i++) {
+    if(write(output, block, BLOCK)) {
+      perror("write");
+      exit(-1)
+    }
+  }
 }
 
 /* Reads all directories and files in path and calls other function createHeader for it */
