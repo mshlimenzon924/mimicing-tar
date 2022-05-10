@@ -119,8 +119,8 @@ void readCPath(char *path, int output, int v, int S){
   struct stat lst_b;
   struct stat st_b;
   struct dirent *entry;
-  // char *pass_path;
   
+  // printf("path %s\n", path);
   /* getting information about link if link */
   if(lstat(path, &lst_b)){
     perror("lstat");
@@ -147,7 +147,6 @@ void readCPath(char *path, int output, int v, int S){
       createHeader(&lst_b, path, output, v, S); 
     }
     createHeader(&st_b, path, output, v, S);
-    printf("path %s\n", path);
 
     if(chdir(path) == -1) {
       perror("chdir");
@@ -160,14 +159,15 @@ void readCPath(char *path, int output, int v, int S){
 
     /* now looping through directory to call readCPath on it and all its files */
     while((entry = readdir(d)) != NULL) {
-      if(strcmp(entry->d_name, ".") || strcmp(entry->d_name, "..")){
-        printf("dname %s\n", entry->d_name);
+      // printf("entry");
+      if(strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")){
+        // printf("dname %s\n", entry->d_name);
         readCPath(entry->d_name, output, v, S); 
-        if(chdir("..") == -1) {
+      }
+    }
+    if(chdir("..") == -1) {
           perror("chdir");
           exit(-1);
-        }
-      }
     }
     if(closedir(d) == -1){
       perror("close");
@@ -185,7 +185,7 @@ void readCPath(char *path, int output, int v, int S){
 /* struct that's a header- where we fill in the correct information */
 /* at end of header format it and place it into the tar file */
 void createHeader(struct stat *sb, char *path, int output, int v, int S) {
-  printf("%s\n", path);
+  printf("header %s\n", path);
   if(v) {
    // printout what we are doing rn
   }
