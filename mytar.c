@@ -98,6 +98,8 @@ int ctar(char *argv[], int vFlag, int SFlag) {
 
 /* Reads all directories and files in path and calls other function createHeader for it */
 readCPath(char *path, int output, int vFlag, int SFlag){
+  
+  
   /* recursively goes through directories/files and calls createHeader() on everything */
   /* print out if v when you call createHeader() */
   createHeader(); 
