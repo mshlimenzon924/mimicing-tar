@@ -4,6 +4,7 @@
    by bundling files or  directories into a
    single file.
  */
+#include "mytar.h"
 
 int main(int argc, char *argv[]) {
   int c = 0, t = 0, x = 0;
@@ -74,7 +75,7 @@ int main(int argc, char *argv[]) {
 
   }
   else if(x || t){
-
+    printf("x or t");
   }
   
 return 0;
@@ -93,7 +94,7 @@ void ctar(char *argv[], int v, int S) {
   /* create the tar file */
   if((output = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR)) == -1) {
     perror("open");
-    exit(-1);  mytar [ctxvS]f tarfile
+    exit(-1);  
   }
   /* calls for each of the paths readCPath() */
   for(i = 3; i < argc; i++){
@@ -103,33 +104,83 @@ void ctar(char *argv[], int v, int S) {
   for(i = 0; i < 2; i++) {
     if(write(output, block, BLOCK)) {
       perror("write");
-      exit(-1)
+      exit(-1);
     }
   }
 }
 
-/* Reads all directories and files in path and calls other function createHeader for it */
-readCPath(char *path, int output, int v, int S){
+/* Recursively reads all directories and files in path 
+   And calls other function createHeader for it.
+   Returns nothing. */
+void readCPath(char *path, int output, int v, int S){
+  DIR *d;
+  struct stat lst_b;
+  struct stat st_b;
+  struct dirent *entry;
+  char *pass_path;
   
-  
-  /* recursively goes through directories/files and calls createHeader() on everything */
-  /* print out if v when you call createHeader() */
-  createHeader(); 
+  /* getting information about link if link */
+  if(lstat(path, &lst_b)){
+    perror("lstat");
+    exit(-1);
+  }
+  /* getting information about file links points to */
+  if(stat(path, &st_b)){
+    perror("stat");
+    exit(-1);
+  }
+  /* Regular file condition */
+  if(S_ISREG(lst_b.st_mode)) {
+    createHeader(&lst_b, path, output, v, S);
+  }
+  /* Regular file sym link condition */
+  else if(S_ISLNK(lst_b.st_mode) && S_ISREG(st_b.st_mode)){
+    createHeader(&lst_b, path, output, v, S); 
+    createHeader(&st_b, path, output, v, S); 
+  }
+  /* Directory condition */
+  else if(S_ISDIR(st_b.st_mode)){
+    /* Sym Link Directory */
+    if(S_ISLNK(lst_b.st_mode)){
+      createHeader(&lst_b, path, output, v, S); 
+    }
+    createHeader(&st_b, path, output, v, S);
+
+    /* now looping through directory to call readCPath on it and all its files */
+    while((entry = readdir(d)) != NULL) {
+      pass_path = path;
+      strcat(pass_path, "/");
+      readCPath(strcat(pass_path, entry->d_name), output, v, S);
+    }
+  }
+  else{
+    printf("A file that it isn't supported with mytar was found.\n");
+    printf("Mytar only supports regular files, directories, or sym links.\n");
+  }
+ 
 } 
 
 /* Using given path, takes all data and puts it into a struct */
 /* struct that's a header- where we fill in the correct information */
 /* at end of header format it and place it into the tar file */
-createHeader() {
+void createHeader(struct stat *sb, char *path, int output, int v, int S) {
+  printf("%s\n", path);
+  if(v) {
+   // printout what we are doing rn
+  }
+  /* print out if v when you call createHeader() */
   /* if S then do weird stuff with magic number + version */
 }
 
+
+/*
 int xttar(..., char *path_list, int v, int S) {
   //given tar file 
   //check if given multiple paths or none!! 
   // given path - read header
-  /* how to find secific targets */
+  // how to find secific targets 
 }
+
 
 readXPath() {
   //read the path
@@ -150,4 +201,4 @@ extractHeader() {
 
 int ttar(..., int v, int S) {
   //
-}
+} */
