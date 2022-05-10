@@ -6,70 +6,119 @@
  */
 
 int main(int argc, char *argv[]) {
-  char main_flag = 0;
+  int cflag = 0, tflag = 0, xflag = 0;
   int vflag = 0, fflag = 0, Sflag = 0;
   int i = 0;
+  char *path_list[10]; /* list to hold paths */
+
   if(argc < 3)  {
-    fprintf(stderr, "too little arguments"); 
-    fprintf(stderr, "usage: mytar [ctxvS]f tarfile");
+    printf ("Missing argument/s\n"); 
+    printf("Usage: mytar [ctxvS]f tarfile\n");
     exit(-1);
   }
   for(; i < strlen(argv[1]); i++) {
     if(argv[1][i] == 'c') {
-      main_flag += 'c';
+      cflag++;
     }
     else if(argv[1][i] == 't') {
-      main_flag += 't';
+      tflag++;
     }
     else if(argv[1][i] == 'x') {
-      main_flag += 'x';
+      xflag++;
     }
     else if(argv[1][i] == 'v') {
-      vflag ++;
+      vflag++;
     }
     else if(argv[1][i] == 'S') {
-      Sflag ++;
+      Sflag++;
     }
     else if(argv[1][i] == 'f') {
-      fflag ++;
+      fflag++;
     }
     else {
-      fprintf(stderr, "letter not from list"); 
-      fprintf(stderr, "usage: mytar [ctxvS]f tarfile");
+      
+      printf("Usage: mytar [ctxvS]f tarfile\n");
       exit(-1);
     }
   }
   /* main flag empty */
-  if(!main_flag) {
-   fprintf(stderr, "need one of the options from ctv"); 
-   fprintf(stderr, "usage: mytar [ctxvS]f tarfile");
+  if((cflag + tflag + xflag) == 0) {
+    printf ("Need to specify one of -c, -t, or -x\n"); 
+    printf("Usage: mytar [ctxvS]f tarfile\n");
    exit(-1);
   }
   /* if more than one letter selected */
-  if(main_flag > 121) {
-    fprintf(stderr, "only choose one from ctv"); 
-    fprintf(stderr, "usage: mytar [ctxvS]f tarfile");
+  if((cflag + tflag + xflag) > 1){ 
+    printf ("Only choose one of -c, -t, or -x\n"); 
+    printf("Usage: mytar [ctxvS]f tarfile\n");
     exit(-1);
   }
   /* missing f flag */
   if(fflag == 0) {
-     fprintf(stderr, "f flag is missing"); 
-     fprintf(stderr, "usage: mytar [ctxvS]f tarfile");
+     printf ("Missing -f\n"); 
+    printf("Usage: mytar [ctxvS]f tarfile\n");
      exit(-1);
   }
   if((fflag - 1 > 0) || (vflag - 1 > 0) || (Sflag - 1 > 0)) {
-    fprintf(stderr, "only output vSf once"); 
-    fprintf(stderr, "usage: mytar [ctxvS]f tarfile");
+    printf ("Only choose one for -v, -S, and -f\n"); 
+    printf("Usage: mytar [ctxvS]f tarfile\n");
   }
   
-  
-  
+  if(cflag) {}
 
+  if(xflag){}
+
+  if(tflag){}
+  
 return 0;
 }
 
-int xtar(..., int vFlag, int SFlag) {}
-int ctar(... ,int vFlag, int SFlag) {}
-int ttar(..., int vFlag, int SFlag) {}
+/* Creates tar file with given path list */
+int ctar(... ,char *path_list, int vFlag, int SFlag) {
+  // create the tar file 
+  //check for v and S
+  //calls for each of the paths readPath(path);
+  //then writes the 2 null blocks at the end
+}
 
+/* Reads all directories and files in path and calls other function createHeader for it */
+readCPath(){
+  /* recursively goes through directories/files and calls createHeader() on everything */
+  /* print out if v when you call createHeader() */
+  createHeader(); 
+} 
 
+/* Using given path, takes all data and puts it into a struct */
+/* struct that's a header- where we fill in the correct information */
+/* at end of header format it and place it into the tar file */
+createHeader() {
+  /* if S then do weird stuff with magic number + version */
+}
+
+int xtar(..., char *path_list, int vFlag, int SFlag) {
+  //given tar file 
+  //check if given multiple paths or none!! 
+  // given path - read header
+  /* how to find secific targets */
+}
+
+readXPath() {
+  //read the path
+  //recusively traversing (reading through the tree)
+  //print out the path if v before I call extract header
+  //if directory then if it got deleted replicate but if not then 
+  // just access it and add files
+
+  //follow path as much as we can and if we can't find then create
+  extractHeader();
+}
+
+extractHeader() {
+  //fill struct with header 
+  //if file exists already, truncate and write with new header 
+  //return that struct
+}
+
+int ttar(..., int vFlag, int SFlag) {
+  //
+}
