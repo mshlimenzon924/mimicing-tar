@@ -6,8 +6,8 @@
  */
 
 int main(int argc, char *argv[]) {
-  int c = 0, t = 0, x = 0;
-  int v = 0, f= 0, S = 0;
+  int cflag = 0, tflag = 0, xflag = 0;
+  int vflag = 0, fflag = 0, Sflag = 0;
   int i = 0;
   char *path_list[10]; /* list to hold paths */
 
@@ -18,66 +18,63 @@ int main(int argc, char *argv[]) {
   }
   for(; i < strlen(argv[1]); i++) {
     if(argv[1][i] == 'c') {
-      c++;
+      cflag++;
     }
     else if(argv[1][i] == 't') {
-      t++;
+      tflag++;
     }
     else if(argv[1][i] == 'x') {
-      x++;
+      xflag++;
     }
     else if(argv[1][i] == 'v') {
-      v++;
+      vflag++;
     }
     else if(argv[1][i] == 'S') {
-      S++;
+      Sflag++;
     }
     else if(argv[1][i] == 'f') {
-      f++;
+      fflag++;
     }
-    else {  
+    else {
+      
       printf("Usage: mytar [ctxvS]f tarfile\n");
       exit(-1);
     }
   }
-  /* ctv empty */
-  if((c + t + x) == 0) {
+  /* main flag empty */
+  if((cflag + tflag + xflag) == 0) {
     printf ("Need to specify one of -c, -t, or -x\n"); 
     printf("Usage: mytar [ctxvS]f tarfile\n");
-    exit(-1);
+   exit(-1);
   }
   /* if more than one letter selected */
-  if((c + t + x) > 1){ 
+  if((cflag + tflag + xflag) > 1){ 
     printf ("Only choose one of -c, -t, or -x\n"); 
     printf("Usage: mytar [ctxvS]f tarfile\n");
     exit(-1);
   }
-  /* missing f */
-  if(f== 0) {
-    printf ("Missing -f\n"); 
+  /* missing f flag */
+  if(fflag == 0) {
+     printf ("Missing -f\n"); 
     printf("Usage: mytar [ctxvS]f tarfile\n");
-    exit(-1);
+     exit(-1);
   }
-  if((f - 1 > 0) || (v - 1 > 0) || (S- 1 > 0)) {
+  if((fflag - 1 > 0) || (vflag - 1 > 0) || (Sflag - 1 > 0)) {
     printf ("Only choose one for -v, -S, and -f\n"); 
     printf("Usage: mytar [ctxvS]f tarfile\n");
   }
   
-  if(c) {
-    ctar(argv[],char *path_list, vFlag, SFlag);
+  if(cflag) {}
 
-  }
+  if(xflag){}
 
-  if(x){}
-
-  if(t){}
+  if(tflag){}
   
 return 0;
 }
 
 /* Creates tar file with given path list */
-int ctar(char *argv[],char *path_list, int vFlag, int SFlag) {
-  
+int ctar(... ,char *path_list, int vFlag, int SFlag) {
   // create the tar file 
   //check for v and S
   //calls for each of the paths readPath(path);
