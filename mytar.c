@@ -187,10 +187,13 @@ void readCPath(char *path, int output, int v, int S){
 /* struct that's a header- where we fill in the correct information */
 /* at end of header format it and place it into the tar file */
 void createHeader(struct stat *sb, char *path, int output, int v, int S) {
-  printf("header %s\n", path);
   if(v) {
-   // printout what we are doing rn
+    printf("header %s\n", path); //get rid of header after debugging 
   }
+  
+
+
+
   /* print out if v when you call createHeader() */
   /* if S then do weird stuff with magic number + version */
 }
