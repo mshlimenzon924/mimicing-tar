@@ -196,31 +196,6 @@ void createHeader(struct stat *sb, char *path, int output, int v, int S) {
 }
 
 
-/*
-int xttar(..., char *path_list, int v, int S) {
-  //given tar file 
-  //check if given multiple paths or none!! 
-  // given path - read header
-  // how to find secific targets 
-}
-readXPath() {
-  //read the path
-  //recusively traversing (reading through the tree)
-  //print out the path if v before I call extract header
-  //if directory then if it got deleted replicate but if not then 
-  // just access it and add files
-  //follow path as much as we can and if we can't find then create
-  extractHeader();
-}
-extractHeader() {
-  //fill struct with header 
-  //if file exists already, truncate and write with new header 
-  //return that struct
-}
-int ttar(..., int v, int S) {
-  //
-} */
-
 
 
 int ttar(char *arguments[], int vFlag, int SFlag) {
