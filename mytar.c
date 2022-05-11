@@ -135,20 +135,20 @@ void readCPath(char *path, int output, int v, int S){
   }
   /* Regular file condition */
   if(S_ISREG(lst_b.st_mode)) {
-    createHeader(&lst_b, path, output, v, S);
+    createHeader('0', &lst_b, path, output, v, S);
   }
   /* Regular file sym link condition */
   else if(S_ISLNK(lst_b.st_mode) && S_ISREG(st_b.st_mode)){
-    createHeader(&lst_b, path, output, v, S); 
-    createHeader(&st_b, path, output, v, S); 
+    createHeader('2', &lst_b, path, output, v, S); 
+    createHeader('0', &st_b, path, output, v, S); 
   }
   /* Directory condition */
   else if(S_ISDIR(st_b.st_mode)){
     /* Sym Link Directory */
     if(S_ISLNK(lst_b.st_mode)){ 
-      createHeader(&lst_b, path, output, v, S); 
+      createHeader('2', &lst_b, path, output, v, S); 
     }
-    createHeader(&st_b, path, output, v, S);
+    createHeader('5', &st_b, path, output, v, S);
 
     if(chdir(path) == -1) {
       perror("chdir");
@@ -186,8 +186,10 @@ void readCPath(char *path, int output, int v, int S){
 /* Using given path, takes all data and puts it into a struct */
 /* struct that's a header- where we fill in the correct information */
 /* at end of header format it and place it into the tar file */
-void createHeader(struct stat *sb, char *path, int output, int v, int S) {
+void createHeader(char typeflag, struct stat *sb, char *path, int output, int v, int S) {
   header_struct header;
+  struct passwd pwd;
+  struct group grp;
   int open_file;
   int num;
   char *buffer;
@@ -202,23 +204,38 @@ void createHeader(struct stat *sb, char *path, int output, int v, int S) {
     printf("header %s\n", path); //get rid of header after debugging 
   }
   /*fill header with correct stuff */
-  /* if S then do weird stuff with magic number + version */
-  //name 
-  //mode 
-  //uid
-  //gid
-  //size
-  //mtime
-  //chksum
-  //typeflag
+  memset(&header, 0, BLOCK);
+  if(strlen(path) <= NAME_LENGTH) {
+   memcpy(header.name, path, strlen(path));
+  }
+  else {
+    memcpy(header.name, path, NAME_LENGTH);
+    if((strlen(path) - NAME_LENGTH - 1) < )
+    memcpy(header.path)
+  }
+  //name (if path is shorter than NAME_LENGTH, shove it in if not)
+  //shove in all you can and all that you can't put into prefix
+  //mode given mode_t st_mode;
+
+  //uid given gid_t st_gid;
+  //gid given gid_t st_gid;
+  //size given off_t st_size
+  //mtime given st_mtime (time_t)
+  header.typeflag = typeflag;
   //link name
-  //magic
-  header.version = "00";
+    //how would i get link value?
+  strcpy(header.magic, "ustar");
+  /* if S then do weird stuff with magic number + version */
+  header.version[0] = '0';
+  header.version[1] = '0';
   //uname
   //gname 
   //devmajor
   //devminor
   //prefix
+  //chksum 
+  //loop through entire header structure- turn all chars into unsigned chars and end them up
+  //turn into octal number
 
 
   /*write into output the header */
@@ -246,8 +263,12 @@ void createHeader(struct stat *sb, char *path, int output, int v, int S) {
       exit(-1);
     }
   } */
+  free(buffer);
 }
 
+char * intoOctalNumber(int decimal) {
+
+}
 
 
 
