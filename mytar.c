@@ -193,6 +193,7 @@ void createHeader(char typeflag, struct stat *sb, char *path, int output, int v,
   int open_file;
   int num;
   char *buffer;
+  int i = 0, sum = 0;
 
   buffer = (char *)malloc(BUFF_SIZE);
   if(!buffer) {
@@ -210,22 +211,20 @@ void createHeader(char typeflag, struct stat *sb, char *path, int output, int v,
   }
   else {
     memcpy(header.name, path, NAME_LENGTH);
-    if((strlen(path) - NAME_LENGTH - 1) < )
-    memcpy(header.path)
+    memcpy(header.prefix, path + NAME_LENGTH, strlen(path) - NAME_LENGTH);
   }
-  //name (if path is shorter than NAME_LENGTH, shove it in if not)
-  //shove in all you can and all that you can't put into prefix
-  //mode given mode_t st_mode;
-
-  //uid given gid_t st_gid;
-  //gid given gid_t st_gid;
+  //how do I tell how much I pad it with?
+  sprintf(header.mode, 8, "%o", sb.st_mode); //16 bits //%011o??
+  sprintf(header.uid, 8, "%o", sb.st_uid); //%07o?
+  sprintf(header.gid, 8, "%o", sb.st_gid);
+  sprintf(header.size, 12, "%o", sb.st_size);
+  sprintf(header.mtime, 12, "%o", sb.st_mtime);
   //size given off_t st_size
   //mtime given st_mtime (time_t)
   header.typeflag = typeflag;
   //link name
     //how would i get link value?
-  strcpy(header.magic, "ustar");
-  /* if S then do weird stuff with magic number + version */
+  strcpy(header.magic, "ustar"); 
   header.version[0] = '0';
   header.version[1] = '0';
   //uname
@@ -239,14 +238,12 @@ void createHeader(char typeflag, struct stat *sb, char *path, int output, int v,
 
 
   /*write into output the header */
-  /*
   if(write(output, header.name, BLOCK)) {
       perror("write");
       exit(-1);
-    } */
+    } 
 
   /* If regular file, add all of files contents */
-  /*
   if(S_ISREG(sb.st_mode)) {
     if((open_file = open(path, O_RDONLY)) < 0) {
       perror(path);
@@ -262,14 +259,9 @@ void createHeader(char typeflag, struct stat *sb, char *path, int output, int v,
       perror("read");
       exit(-1);
     }
-  } */
+  } 
   free(buffer);
 }
-
-char * intoOctalNumber(int decimal) {
-
-}
-
 
 
 int ttar(char *arguments[], int vFlag, int SFlag) {
