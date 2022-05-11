@@ -69,12 +69,14 @@ int main(int argc, char *argv[]) {
       printf("Usage: mytar [ctxvS]f tarfile path\n");
       exit(-1);
     }
-    //check here that we have an argv[3] or else say we need a path 
+    /*check here that we have an argv[3] or else say we need a path */
     ctar(argc, argv, v, S);
 
   }
-  else if(x || t){
-    printf("x or t");
+  else if(t){
+    ttar(argv, v, S);
+  } else if(x){
+    printf("x");
   }
   
 return 0;
@@ -201,25 +203,235 @@ int xttar(..., char *path_list, int v, int S) {
   // given path - read header
   // how to find secific targets 
 }
-
-
 readXPath() {
   //read the path
   //recusively traversing (reading through the tree)
   //print out the path if v before I call extract header
   //if directory then if it got deleted replicate but if not then 
   // just access it and add files
-
   //follow path as much as we can and if we can't find then create
   extractHeader();
 }
-
 extractHeader() {
   //fill struct with header 
   //if file exists already, truncate and write with new header 
   //return that struct
 }
-
 int ttar(..., int v, int S) {
   //
 } */
+
+
+
+int ttar(char *arguments[], int vFlag, int SFlag) {
+  /* Declares Variables here */
+  /* Check to make sure this is how you can open tar_file */
+  int tar_file = open(arguments[2], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IROTH | S_IWOTH);
+  int offset;
+  if (tar_file < 0){
+    printf("File unable to be opened.\n");
+    exit(EXIT_FAILURE);
+  }
+
+  /* Takes given archive file */
+  /* Evaluates if there is a path or not */
+
+
+  /* Recursively run through tree within archive */
+  while (NotatEnd(tar_file)){
+    offset = lseek(tar_file, -1024, SEEK_CUR);
+    trecurse_through_path(tar_file, vFlag);
+  }
+
+
+  /* Going through each file in order, if it is a directory, 
+    open directory and recurse through it, until last file in root is read */
+  
+  /* Print out the files as you go */
+
+  /* Return without errors */
+  return 0;
+}
+
+int trecurse_through_path(int tar_file, int verbose){
+  /* Declares Variables */
+  char *delete_block, *eptr, *writer;
+  char *output = (char*)malloc(sizeof(char) * 356);
+  char *size_buff = (char*)malloc(sizeof(char) * 8);
+  char typ;
+  int fail, i, mask, value, year, month, day, hour, minute, times;
+  char *name = (char*)malloc(sizeof(char) * 100);
+  char *mode = (char*)malloc(sizeof(char) * 8);
+  char *size = (char*)malloc(sizeof(char) * 12);
+  char *mtime = (char*)malloc(sizeof(char) * 12);
+  char *type = (char*)malloc(sizeof(char));
+  char *uname= (char*)malloc(sizeof(char) * 32);
+  char *gname = (char*)malloc(sizeof(char) * 32);
+  char *prefix = (char*)malloc(sizeof(char) * 155);
+
+  read(tar_file, name, 100);
+  read(tar_file, mode,  8);
+  read(tar_file, delete_block, 16);
+  read(tar_file, size, 12);
+  read(tar_file, mtime, 12);
+  read(tar_file, delete_block, 8);
+  read(tar_file, type, 1);
+  read(tar_file, delete_block, 108);
+  read(tar_file, uname, 32);
+  read(tar_file, gname, 32);
+  read(tar_file, delete_block, 16);
+  read(tar_file, prefix, 155);
+
+  /* PERMISSIONS */
+  /* Get type for permissions */
+  typ = type[0];
+  if (typ == '2'){
+    /* Symbolic Link type */
+    printf("l");
+
+  } else if (typ == '5'){
+    /* Directory type */
+    printf("d");
+
+  } else {
+    /* Other file type */
+    printf("-");
+  }
+
+  /* Convert octal to permission */
+  /* I'm very unsure about the type format of this */
+  for (i = 4; i < 7; i++){
+    mask = mode[4] - 48;
+
+    if (mask >= 4){
+      printf("r");
+      mask -= 4;
+    } else {
+      printf("-");
+    }
+
+    if (mask >= 2){
+      printf("w");
+      mask -= 2;
+    } else {
+      printf("-");
+    }
+
+    if (mask >= 1){
+      printf("x");
+    } else {
+      printf("-");
+    }
+  }
+  printf(" ");
+
+  /* OWNER / GROUP NAMES */
+  i = 0;
+  while (uname[i] && i < 8){
+    printf("%c", uname[i++]);
+  }
+  printf("/");
+  i = 0;
+  while (gname[i] && i < 8){
+    printf("%c", gname[i++]);
+  }
+
+  printf(" ");
+
+  /* SIZE */
+  /* Convert from octal to int and then prints them out in 8 characters */
+  value = strtol(size, &eptr, 8);
+  sprintf(size, "%d", 8);
+
+  /* Read out contents into nowhere */
+  value /= 512;
+  for(i = 0; i < value; i++){
+    delete_block = (char*)malloc(sizeof(char) * 512);
+    fail = read(tar_file, delete_block, 512);
+    free(delete_block);
+  }
+
+  /* M TIME */
+  value = strtol(mtime, &eptr, 8);
+
+  /* Year */
+  times = value / 31536000;
+  value -= 31536000 * times;
+  year = 1970 + times;
+
+  /* Month */
+  times = value / 2628000;
+  value -= 2628000 * times;
+  month = times;
+
+  /* Day */
+  times = value / 86400;
+  value -= 86400 * times;
+  day = times;
+
+  /* Hour */
+  times = value / 3600;
+  value -= 3600 * times;
+  hour = times;
+
+  /* Minutes */
+  times = value / 60;
+  value -= 60 * times;
+  minute = times;
+
+  /* Put it all together */
+  writer = (char*)malloc(sizeof(char) * 6);
+  sprintf(writer, " %d-", year);
+  fail = write(STDOUT_FILENO, writer, 6);
+  
+  sprintf(writer, "%d-", month);
+  fail = write(STDOUT_FILENO, writer, 3);
+  sprintf(writer, "%d ", day);
+  fail = write(STDOUT_FILENO, writer, 3);
+  sprintf(writer, "%d:", hour);
+  fail = write(STDOUT_FILENO, writer, 3);
+  sprintf(writer, "%d ", minute);
+  fail = write(STDOUT_FILENO, writer, 3);
+  free(writer);
+
+  /* Name */
+  printf("%s/%s", prefix, name);
+
+  free(name);
+  free(mode);
+  free(size);
+  free(mtime);
+  free(type);
+  free(uname);
+  free(gname);
+  free(prefix);
+  free(output);
+  free(size_buff);
+  
+  return 0;
+
+}
+
+/* Function to see if we're at the end */
+int NotatEnd(int tar_file){
+  
+  char *two_blocks = (char *)malloc(sizeof(char) * 1024);
+  int fail, i;
+  int allZero = 0;
+  fail = read(tar_file, two_blocks, 1024);
+  if (fail < 0){
+    printf("Read failed.\n");
+    exit(EXIT_FAILURE);
+  }
+  for (i = 0; i < 1024 && !allZero; i++){
+    allZero |= two_blocks[i];
+  }
+
+  free(two_blocks);
+
+  return allZero;
+
+
+}
+ 
+
