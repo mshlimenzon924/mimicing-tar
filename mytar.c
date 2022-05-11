@@ -187,15 +187,65 @@ void readCPath(char *path, int output, int v, int S){
 /* struct that's a header- where we fill in the correct information */
 /* at end of header format it and place it into the tar file */
 void createHeader(struct stat *sb, char *path, int output, int v, int S) {
+  header_struct header;
+  int open_file;
+  int num;
+  char *buffer;
+
+  buffer = (char *)malloc(BUFF_SIZE);
+  if(!buffer) {
+    perror("malloc");
+    exit(-1);
+  }
+
   if(v) {
     printf("header %s\n", path); //get rid of header after debugging 
   }
-  
-
-
-
-  /* print out if v when you call createHeader() */
+  /*fill header with correct stuff */
   /* if S then do weird stuff with magic number + version */
+  //name 
+  //mode 
+  //uid
+  //gid
+  //size
+  //mtime
+  //chksum
+  //typeflag
+  //link name
+  //magic
+  header.version = "00";
+  //uname
+  //gname 
+  //devmajor
+  //devminor
+  //prefix
+
+
+  /*write into output the header */
+  /*
+  if(write(output, header.name, BLOCK)) {
+      perror("write");
+      exit(-1);
+    } */
+
+  /* If regular file, add all of files contents */
+  /*
+  if(S_ISREG(sb.st_mode)) {
+    if((open_file = open(path, O_RDONLY)) < 0) {
+      perror(path);
+      exit(-1);
+    }
+    while((num = read(open_file, buffer, BUFF_SIZE)) > 0){
+      if(write(output, buffer, num) != num) {
+        perror("write");
+        exit(-1);
+      }
+    }
+    if(num < 0) {
+      perror("read");
+      exit(-1);
+    }
+  } */
 }
 
 
