@@ -103,14 +103,12 @@ void ctar(int argc, char *argv[], int v, int S) {
   }
   
   /* Write 2 null blocks at the end */
-  /*
   for(i = 0; i < 2; i++) {
     if(write(output, block, BLOCK)) {
       perror("write");
       exit(-1);
     }
   }
-  */
 }
 
 /* Recursively reads all directories and files in path 
@@ -188,8 +186,8 @@ void readCPath(char *path, int output, int v, int S){
 /* at end of header format it and place it into the tar file */
 void createHeader(char typeflag, struct stat *sb, char *path, int output, int v, int S) {
   header_struct header;
-  struct passwd pwd;
-  struct group grp;
+  struct passwd *pw;
+  struct group *grp;
   int open_file;
   int num;
   char *buffer;
@@ -202,7 +200,7 @@ void createHeader(char typeflag, struct stat *sb, char *path, int output, int v,
   }
 
   if(v) {
-    printf("header %s\n", path); //get rid of header after debugging 
+    printf("%s\n", path); 
   }
   /*fill header with correct stuff */
   memset(&header, 0, BLOCK);
@@ -214,28 +212,36 @@ void createHeader(char typeflag, struct stat *sb, char *path, int output, int v,
     memcpy(header.prefix, path + NAME_LENGTH, strlen(path) - NAME_LENGTH);
   }
   //how do I tell how much I pad it with?
-  sprintf(header.mode, 8, "%o", sb.st_mode); //16 bits //%011o??
-  sprintf(header.uid, 8, "%o", sb.st_uid); //%07o?
-  sprintf(header.gid, 8, "%o", sb.st_gid);
-  sprintf(header.size, 12, "%o", sb.st_size);
-  sprintf(header.mtime, 12, "%o", sb.st_mtime);
-  //size given off_t st_size
-  //mtime given st_mtime (time_t)
+  snprintf(header.mode, 8, "%o", sb.st_mode); //16 bits //%011o??
+  snprintf(header.uid, 8, "%o", sb.st_uid); //%07o?
+  snprintf(header.gid, 8, "%o", sb.st_gid);
+  if(S_ISREG(sb.st_mode)) {
+    snprintf(header.size, 12, "%o", sb.st_size);
+  }
+  else {
+    snprintf(header.size, 12, "%o", 0);
+  }
+  snprintf(header.mtime, 12, "%o", sb.st_mtime);
   header.typeflag = typeflag;
-  //link name
-    //how would i get link value?
+  if(S_ISLNK(sb.st_mode)) {
+    if(readlink(header.linkname, path, LINKNAME_LENGTH) < 0){
+      perror("readlink");
+      exit(-1);
+    }
+  }
   strcpy(header.magic, "ustar"); 
   header.version[0] = '0';
   header.version[1] = '0';
-  //uname
-  //gname 
-  //devmajor
-  //devminor
-  //prefix
-  //chksum 
-  //loop through entire header structure- turn all chars into unsigned chars and end them up
-  //turn into octal number
-
+  pw = getpwid(sb.st_uid);
+  memcpy(header.uname, pw->pw_name, UNAME_LENGTH);
+  grp = getgrgrid(sb.st_gid);
+  memcpy(header.uname, grp->gr_name, UNAME_LENGTH);
+  snprintf(header.devmajor, 12, "%o", sb.st_dev);
+  snprintf(header.devminor, 12, "%o", sb.st_rdev);
+  for(i = 0, i < BLOCK, i++) {
+    sum += (unsigned char)(header[i]);
+  }
+  snprintf(header.chksum, 12, "%o", sum);
 
   /*write into output the header */
   if(write(output, header.name, BLOCK)) {

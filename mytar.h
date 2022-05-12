@@ -13,6 +13,8 @@
 #define BUFF_SIZE 4096
 #define NAME_LENGTH 100
 #define PREFIX_LENGTH 155
+#define UNAME_LENGTH 32
+#define LINKNAME_LENGTH 100
 void ctar(int argc, char *argv[], int v, int S);
 void readCPath(char *path, int output, int v, int S);
 void createHeader(struct stat *sb, char *path, int output, int v, int S);
