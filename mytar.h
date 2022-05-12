@@ -15,9 +15,9 @@
 #define PREFIX_LENGTH 155
 #define UNAME_LENGTH 32
 #define LINKNAME_LENGTH 100
-void ctar(int argc, char *argv[], int v, int S);
-void readCPath(char *path, int output, int v, int S);
-void createHeader(struct stat *sb, char *path, int output, int v, int S);
+void ctar(int argc, char *argv[], int v);
+void readCPath(char *path, int output, int v);
+void createHeader(struct stat *sb, char *path, int output, int v);
 int NotatEnd(int tar_file);
 int ttar(char *arguments[], int vFlag, int SFlag);
 int trecurse_through_path(int tar_file, int verbose);
