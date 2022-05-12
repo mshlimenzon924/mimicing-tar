@@ -212,7 +212,7 @@ void createHeader(char typeflag, struct stat *sb, char *path, int output, int v,
     memcpy(header.prefix, path + NAME_LENGTH, strlen(path) - NAME_LENGTH);
   }
   //how do I tell how much I pad it with?
-  snprintf(header.mode, 8, "%o", sb.st_mode); //16 bits //%011o??
+  snprintf(header.mode, 8, "%o", sb.st_mode & 07777); //&07?
   snprintf(header.uid, 8, "%o", sb.st_uid); //%07o?
   snprintf(header.gid, 8, "%o", sb.st_gid);
   if(S_ISREG(sb.st_mode)) {
@@ -233,9 +233,9 @@ void createHeader(char typeflag, struct stat *sb, char *path, int output, int v,
   header.version[0] = '0';
   header.version[1] = '0';
   pw = getpwid(sb.st_uid);
-  memcpy(header.uname, pw->pw_name, UNAME_LENGTH);
+  memcpy(header.uname, pw->pw_name, UNAME_LENGTH - 1);
   grp = getgrgrid(sb.st_gid);
-  memcpy(header.uname, grp->gr_name, UNAME_LENGTH);
+  memcpy(header.uname, grp->gr_name, UNAME_LENGTH - 1);
   snprintf(header.devmajor, 12, "%o", sb.st_dev);
   snprintf(header.devminor, 12, "%o", sb.st_rdev);
   for(i = 0, i < BLOCK, i++) {
