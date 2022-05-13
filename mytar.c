@@ -4,6 +4,8 @@
    by bundling files or  directories into a
    single file.
  */
+
+// do we need to use unbuffered io?
 #include "mytar.h"
 
 int main(int argc, char *argv[]) {
@@ -74,7 +76,7 @@ int main(int argc, char *argv[]) {
 
   }
   else if(t){
-    ttar(argv, v, S);
+    
   } else if(x){
     printf("x");
   }
@@ -109,6 +111,11 @@ void ctar(int argc, char *argv[], int v) {
       exit(-1);
     }
   }
+
+  if(close(output)){
+    perror("close");
+    exit(-1);
+  }
 }
 
 /* Recursively reads all directories and files in path 
@@ -134,20 +141,20 @@ void readCPath(char *path, int output, int v){
   }
   /* Regular file condition */
   if(S_ISREG(lst_b.st_mode)) {
-    createHeader('0', &lst_b, path, output, v);
+    createHeader('0', lst_b, path, output, v);
   }
   /* Regular file sym link condition */
   else if(S_ISLNK(lst_b.st_mode) && S_ISREG(st_b.st_mode)){
-    createHeader('2', &lst_b, path, output, v); 
-    createHeader('0', &st_b, path, output, v); 
+    createHeader('2', lst_b, path, output, v); 
+    createHeader('0', st_b, path, output, v); 
   }
   /* Directory condition */
   else if(S_ISDIR(st_b.st_mode)){
     /* Sym Link Directory */
     if(S_ISLNK(lst_b.st_mode)){ 
-      createHeader('2', &lst_b, path, output, v); 
+      createHeader('2', lst_b, path, output, v); 
     }
-    createHeader('5', &st_b, path, output, v);
+    createHeader('5', st_b, path, output, v);
 
     if((d = opendir(path)) == NULL) {
       perror("open");
@@ -160,8 +167,8 @@ void readCPath(char *path, int output, int v){
       if(strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")){
         // printf("dname %s\n", entry->d_name);
         cur_path = path;
-        strcat(path, "/");
-        strcat(path, entry->d_name);
+        strcat(cur_path, "/");
+        strcat(cur_path, entry->d_name);
         readCPath(cur_path, output, v); 
       }
     }
@@ -180,14 +187,16 @@ void readCPath(char *path, int output, int v){
 /* Using given path, takes all data and puts it into a struct */
 /* struct that's a header- where we fill in the correct information */
 /* at end of header format it and place it into the tar file */
-void createHeader(char typeflag, struct stat *sb, char *path, int output, int v) {
+void createHeader(char typeflag, struct stat sb, char *path, int output, int v) {
   header_struct header;
   struct passwd *pw;
   struct group *grp;
   int open_file;
+  char *path_help;
   int num;
   char *buffer;
   int i = 0, sum = 0;
+  int count = 0;
 
   buffer = (char *)malloc(BUFF_SIZE);
   if(!buffer) {
@@ -197,27 +206,38 @@ void createHeader(char typeflag, struct stat *sb, char *path, int output, int v)
 
   if(v) {
     printf("%s\n", path); 
+    return;
   }
   /*fill header with correct stuff */
   memset(&header, 0, BLOCK);
   if(strlen(path) <= NAME_LENGTH) {
-   memcpy(header.name, path, strlen(path));
+    memcpy(header.name, path, strlen(path)); 
   }
   else {
-    memcpy(header.name, path, NAME_LENGTH);
-    memcpy(header.prefix, path + NAME_LENGTH, strlen(path) - NAME_LENGTH);
+    i = NAME_LENGTH - 1;
+    path_help = path + i;
+    while(i > 0) {
+      if(*path_help == '/') {
+        break;
+      }
+      path_help--;
+      i--;
+    }
+    memcpy(header.name, path, i);
+    memcpy(header.prefix, path + i, strlen(path) - i);
   }
-  //how do I tell how much I pad it with?
-  snprintf(header.mode, 8, "%o", sb.st_mode & 07777); //&07?
-  snprintf(header.uid, 8, "%o", sb.st_uid); //%07o?
-  snprintf(header.gid, 8, "%o", sb.st_gid);
+  snprintf(header.mode, MODE_LENGTH, "%07o", sb.st_mode & 07777);
+  snprintf(header.uid, UID_LENGTH, "%07o", sb.st_uid);
+  snprintf(header.gid, GID_LENGTH, "%07o", sb.st_gid);
+  /* chksum first filled with spaces */
+  snprintf(header.chksum, CHKSUM_LENGTH, "        ");
   if(S_ISREG(sb.st_mode)) {
-    snprintf(header.size, 12, "%o", sb.st_size);
+    snprintf(header.size, SIZE_LENGTH, "%011o", (int)sb.st_size);
   }
   else {
-    snprintf(header.size, 12, "%o", 0);
+    snprintf(header.size, SIZE_LENGTH, "%011o", 0);
   }
-  snprintf(header.mtime, 12, "%o", sb.st_mtime);
+  snprintf(header.mtime, MTIME_LENGTH, "%011o", (int)sb.st_mtime);
   header.typeflag = typeflag;
   if(S_ISLNK(sb.st_mode)) {
     if(readlink(header.linkname, path, LINKNAME_LENGTH) < 0){
@@ -228,16 +248,24 @@ void createHeader(char typeflag, struct stat *sb, char *path, int output, int v)
   strcpy(header.magic, "ustar"); 
   header.version[0] = '0';
   header.version[1] = '0';
-  pw = getpwid(sb.st_uid);
-  memcpy(header.uname, pw->pw_name, UNAME_LENGTH - 1);
-  grp = getgrgrid(sb.st_gid);
-  memcpy(header.uname, grp->gr_name, UNAME_LENGTH - 1);
-  snprintf(header.devmajor, 12, "%o", sb.st_dev);
-  snprintf(header.devminor, 12, "%o", sb.st_rdev);
-  for(i = 0, i < BLOCK, i++) {
-    sum += (unsigned char)(header[i]);
+  if((pw = getpwuid(sb.st_uid)) == NULL) {
+    perror("getpwuid");
+    exit(-1);
   }
-  snprintf(header.chksum, 12, "%o", sum);
+  memcpy(header.uname, pw->pw_name, UNAME_LENGTH - 1);
+  
+  if((grp = getgrgid(sb.st_gid)) == NULL) {
+    perror("getgrgid");
+    exit(-1);
+  }
+  memcpy(header.uname, grp->gr_name, UNAME_LENGTH - 1);
+
+  /* device number doesn't matter */
+  path_help = (char *)&header;
+  for(i = 0; i < BLOCK; i++) {
+    sum += (unsigned char)path_help[i];
+  }
+  snprintf(header.chksum, CHKSUM_LENGTH, "%07o", sum);
 
   /*write into output the header */
   if(write(output, header.name, BLOCK)) {
@@ -256,6 +284,21 @@ void createHeader(char typeflag, struct stat *sb, char *path, int output, int v)
         perror("write");
         exit(-1);
       }
+      count += num;
+    }
+
+    if(num < 0) {
+      perror("read");
+      exit(-1);
+    }
+
+    if(count % BUFF_SIZE != 0) {
+      memset(buffer, 0, BUFF_SIZE);
+      if(write(output, buffer, count % BUFF_SIZE) != 
+         count % BUFF_SIZE) {
+        perror("write");
+        exit(-1);
+      }
     }
     if(num < 0) {
       perror("read");
@@ -264,217 +307,4 @@ void createHeader(char typeflag, struct stat *sb, char *path, int output, int v)
   } 
   free(buffer);
 }
-
-
-int ttar(char *arguments[], int vFlag, int SFlag) {
-  /* Declares Variables here */
-  /* Check to make sure this is how you can open tar_file */
-  int tar_file = open(arguments[2], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IROTH | S_IWOTH);
-  int offset;
-  if (tar_file < 0){
-    printf("File unable to be opened.\n");
-    exit(EXIT_FAILURE);
-  }
-
-  /* Takes given archive file */
-  /* Evaluates if there is a path or not */
-
-
-  /* Recursively run through tree within archive */
-  while (NotatEnd(tar_file)){
-    offset = lseek(tar_file, -1024, SEEK_CUR);
-    trecurse_through_path(tar_file, vFlag);
-  }
-
-
-  /* Going through each file in order, if it is a directory, 
-    open directory and recurse through it, until last file in root is read */
-  
-  /* Print out the files as you go */
-
-  /* Return without errors */
-  return 0;
-}
-
-int trecurse_through_path(int tar_file, int verbose){
-  /* Declares Variables */
-  char *delete_block, *eptr, *writer;
-  char *output = (char*)malloc(sizeof(char) * 356);
-  char *size_buff = (char*)malloc(sizeof(char) * 8);
-  char typ;
-  int fail, i, mask, value, year, month, day, hour, minute, times;
-  char *name = (char*)malloc(sizeof(char) * 100);
-  char *mode = (char*)malloc(sizeof(char) * 8);
-  char *size = (char*)malloc(sizeof(char) * 12);
-  char *mtime = (char*)malloc(sizeof(char) * 12);
-  char *type = (char*)malloc(sizeof(char));
-  char *uname= (char*)malloc(sizeof(char) * 32);
-  char *gname = (char*)malloc(sizeof(char) * 32);
-  char *prefix = (char*)malloc(sizeof(char) * 155);
-
-  read(tar_file, name, 100);
-  read(tar_file, mode,  8);
-  read(tar_file, delete_block, 16);
-  read(tar_file, size, 12);
-  read(tar_file, mtime, 12);
-  read(tar_file, delete_block, 8);
-  read(tar_file, type, 1);
-  read(tar_file, delete_block, 108);
-  read(tar_file, uname, 32);
-  read(tar_file, gname, 32);
-  read(tar_file, delete_block, 16);
-  read(tar_file, prefix, 155);
-
-  /* PERMISSIONS */
-  /* Get type for permissions */
-  typ = type[0];
-  if (typ == '2'){
-    /* Symbolic Link type */
-    printf("l");
-
-  } else if (typ == '5'){
-    /* Directory type */
-    printf("d");
-
-  } else {
-    /* Other file type */
-    printf("-");
-  }
-
-  /* Convert octal to permission */
-  /* I'm very unsure about the type format of this */
-  for (i = 4; i < 7; i++){
-    mask = mode[4] - 48;
-
-    if (mask >= 4){
-      printf("r");
-      mask -= 4;
-    } else {
-      printf("-");
-    }
-
-    if (mask >= 2){
-      printf("w");
-      mask -= 2;
-    } else {
-      printf("-");
-    }
-
-    if (mask >= 1){
-      printf("x");
-    } else {
-      printf("-");
-    }
-  }
-  printf(" ");
-
-  /* OWNER / GROUP NAMES */
-  i = 0;
-  while (uname[i] && i < 8){
-    printf("%c", uname[i++]);
-  }
-  printf("/");
-  i = 0;
-  while (gname[i] && i < 8){
-    printf("%c", gname[i++]);
-  }
-
-  printf(" ");
-
-  /* SIZE */
-  /* Convert from octal to int and then prints them out in 8 characters */
-  value = strtol(size, &eptr, 8);
-  sprintf(size, "%d", 8);
-
-  /* Read out contents into nowhere */
-  value /= 512;
-  for(i = 0; i < value; i++){
-    delete_block = (char*)malloc(sizeof(char) * 512);
-    fail = read(tar_file, delete_block, 512);
-    free(delete_block);
-  }
-
-  /* M TIME */
-  value = strtol(mtime, &eptr, 8);
-
-  /* Year */
-  times = value / 31536000;
-  value -= 31536000 * times;
-  year = 1970 + times;
-
-  /* Month */
-  times = value / 2628000;
-  value -= 2628000 * times;
-  month = times;
-
-  /* Day */
-  times = value / 86400;
-  value -= 86400 * times;
-  day = times;
-
-  /* Hour */
-  times = value / 3600;
-  value -= 3600 * times;
-  hour = times;
-
-  /* Minutes */
-  times = value / 60;
-  value -= 60 * times;
-  minute = times;
-
-  /* Put it all together */
-  writer = (char*)malloc(sizeof(char) * 6);
-  sprintf(writer, " %d-", year);
-  fail = write(STDOUT_FILENO, writer, 6);
-  
-  sprintf(writer, "%d-", month);
-  fail = write(STDOUT_FILENO, writer, 3);
-  sprintf(writer, "%d ", day);
-  fail = write(STDOUT_FILENO, writer, 3);
-  sprintf(writer, "%d:", hour);
-  fail = write(STDOUT_FILENO, writer, 3);
-  sprintf(writer, "%d ", minute);
-  fail = write(STDOUT_FILENO, writer, 3);
-  free(writer);
-
-  /* Name */
-  printf("%s/%s", prefix, name);
-
-  free(name);
-  free(mode);
-  free(size);
-  free(mtime);
-  free(type);
-  free(uname);
-  free(gname);
-  free(prefix);
-  free(output);
-  free(size_buff);
-  
-  return 0;
-
-}
-
-/* Function to see if we're at the end */
-int NotatEnd(int tar_file){
-  
-  char *two_blocks = (char *)malloc(sizeof(char) * 1024);
-  int fail, i;
-  int allZero = 0;
-  fail = read(tar_file, two_blocks, 1024);
-  if (fail < 0){
-    printf("Read failed.\n");
-    exit(EXIT_FAILURE);
-  }
-  for (i = 0; i < 1024 && !allZero; i++){
-    allZero |= two_blocks[i];
-  }
-
-  free(two_blocks);
-
-  return allZero;
-
-
-}
- 
 

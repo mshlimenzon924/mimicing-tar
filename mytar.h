@@ -9,15 +9,29 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <grp.h>
+#include <pwd.h>
 #define BLOCK 512
 #define BUFF_SIZE 4096
 #define NAME_LENGTH 100
-#define PREFIX_LENGTH 155
-#define UNAME_LENGTH 32
+#define MODE_LENGTH 8
+#define UID_LENGTH 8
+#define GID_LENGTH 8
+#define SIZE_LENGTH 12
+#define MTIME_LENGTH 12
+#define CHKSUM_LENGTH 8
 #define LINKNAME_LENGTH 100
+#define MAGIC_LENGTH 6
+#define UNAME_LENGTH 32
+#define GNAME_LENGTH 32
+#define DEVMAJOR_LENGTH 8
+#define DEVMINOR_LENGTH 8
+#define PREFIX_LENGTH 155
+#define FILLED_UMASK 07777
+
 void ctar(int argc, char *argv[], int v);
 void readCPath(char *path, int output, int v);
-void createHeader(struct stat *sb, char *path, int output, int v);
+void createHeader(char typeflag, struct stat sb, char *path, int output, int v);
 int NotatEnd(int tar_file);
 int ttar(char *arguments[], int vFlag, int SFlag);
 int trecurse_through_path(int tar_file, int verbose);
