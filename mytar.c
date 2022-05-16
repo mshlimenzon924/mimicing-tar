@@ -105,13 +105,15 @@ void ctar(int argc, char *argv[], int v) {
     exit(-1);  
   }
   /* calls for each of the paths readCPath() 
+<<<<<<< HEAD
     and will create a header + if regular file ouput contents */
     
+=======
+    and will create a header + if regular file ouput contents */  
+>>>>>>> 7645d87c62d82cdae5e21e3853de7c5ebad488de
   for (i = 3; i < argc; i++){
     readCPath(argv[i], output, v);
   }
-  
-  
 
   /* Write 2 null blocks at the end */
   if(write(output, block, BLOCK) == -1) {
@@ -299,8 +301,7 @@ void createHeader(char typeflag, struct stat sb,
     perror("Issue with getpwuid of the uname.\n");
     return;
   }
-  // printf("strlen of pwname %d\n", strlen(pw->pw_name));
-  // printf("%s\n", pw->pw_name);
+
   if(strlen(pw->pw_name) < UNAME_LENGTH) {
     memcpy(header.uname, pw->pw_name, strlen(pw->pw_name));
   }
@@ -313,8 +314,7 @@ void createHeader(char typeflag, struct stat sb,
     perror("Issue with getgruid of the gname.\n");
     return;
   }
-  // printf("strlen of gname %d\n", strlen(grp->gr_name));
-  // printf("%s\n", grp->gr_name);
+
   if(strlen(grp->gr_name) < GNAME_LENGTH) {
     memcpy(header.gname, grp->gr_name, strlen(grp->gr_name));
   }
@@ -442,7 +442,6 @@ int xtar(char *arguments[], int argc, int v, int S) {
     lseek(tar_file, SEEK_SET, 0);
       
     }
-
 
   return 0;
 }
