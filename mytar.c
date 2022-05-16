@@ -155,13 +155,12 @@ void readCPath(char *path, char *name, int output, int v){
   /* getting information about link if link */
   if(lstat(path, &lst_b)){
     perror("lstat");
-    exit(-1);
-
+    return;
   }
   /* getting information about file links points to */
   if(stat(path, &st_b)){
     perror("stat");
-    exit(-1);
+    return;
   }
 
   /* Regular file condition */
