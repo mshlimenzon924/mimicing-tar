@@ -105,12 +105,7 @@ void ctar(int argc, char *argv[], int v) {
     exit(-1);  
   }
   /* calls for each of the paths readCPath() 
-<<<<<<< HEAD
-    and will create a header + if regular file ouput contents */
-    
-=======
     and will create a header + if regular file ouput contents */  
->>>>>>> 7645d87c62d82cdae5e21e3853de7c5ebad488de
   for (i = 3; i < argc; i++){
     readCPath(argv[i], output, v);
   }
@@ -163,33 +158,33 @@ void readCPath(char *path, int output, int v){
   /* Regular file sym link condition */
   else if(S_ISLNK(lst_b.st_mode) && S_ISREG(st_b.st_mode)){
     createHeader('2', lst_b, path, output, v); 
-    createHeader('0', st_b, path, output, v); 
+    /*createHeader('0', st_b, path, output, v);*/ 
   }
   /* Directory condition */
   else if(S_ISDIR(st_b.st_mode)){
     /* Sym Link Directory */
     if(S_ISLNK(lst_b.st_mode)){ 
       createHeader('2', lst_b, path, output, v); 
-    }
-    createHeader('5', st_b, path,  output, v);
-
-    if((d = opendir(path)) == NULL) {
-      perror("open");
-      exit(-1);
-    }
-
-    /* now looping through dir to call readCPath on it and all its files */
-    while((entry = readdir(d)) != NULL) {
-      if(strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")){
-        strcpy(cur_path, path);
-        strcat(cur_path, "/");
-        strcat(cur_path, entry->d_name);
-        readCPath(cur_path, output, v); 
+    } else {
+      createHeader('5', st_b, path,  output, v);
+      if((d = opendir(path)) == NULL) {
+        perror("open");
+        exit(-1);
       }
-    }
-    if(closedir(d) == -1){
-      perror("close");
-      exit(-1);
+
+      /* now looping through dir to call readCPath on it and all its files */
+      while((entry = readdir(d)) != NULL) {
+        if(strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")){
+          strcpy(cur_path, path);
+          strcat(cur_path, "/");
+          strcat(cur_path, entry->d_name);
+          readCPath(cur_path, output, v); 
+        }
+      }
+      if(closedir(d) == -1){
+        perror("close");
+        exit(-1);
+      }
     }
   }
   else{
@@ -214,6 +209,7 @@ void createHeader(char typeflag, struct stat sb,
   int num = 0;
   int i = 0, j = 0, sum = 0;
   int count = 0;
+  int chksum = 0;
 
   buffer = (char *)malloc(BUFF_SIZE);
   if(!buffer) {
@@ -325,6 +321,9 @@ void createHeader(char typeflag, struct stat sb,
   /* device number doesn't matter */
 
   /* Chksum */
+  for(i = 0; i < 8; i++){
+    header.chksum[i] = ' ';
+  }
   path_help = (char *)&header;
   for(i = 0; i < BLOCK; i++) {
     sum += (unsigned char)(path_help[i]);
@@ -377,10 +376,6 @@ void createHeader(char typeflag, struct stat sb,
     }
   }
 
-  if(close(open_file) == -1){
-    perror("close");
-    exit(-1);
-  }
   free(buffer);
 
 }
