@@ -107,9 +107,9 @@ void ctar(int argc, char *argv[], int v) {
   /* calls for each of the paths readCPath() 
     and will create a header + if regular file ouput contents */
     
-
-  readCPath(argv[i], output, v);
-  
+  for (i = 3; i < argc; i++){
+    readCPath(argv[i], output, v);
+  }
   
   
 
@@ -329,7 +329,7 @@ void createHeader(char typeflag, struct stat sb,
 
   /* If regular file, add all of files contents */
   if(S_ISREG(sb.st_mode)) {
-    if((open_file = open(link, O_RDONLY)) < 0) {
+    if((open_file = open(path, O_RDONLY)) < 0) {
       perror(path);
       exit(-1);
     }
