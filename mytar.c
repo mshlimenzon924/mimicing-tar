@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
       perror("Usage: mytar [ctxvS]f tarfile path\n");
       exit(-1);
     }
-    ctar(argc, argv, v);
+    ctar(argc, argv, v, S);
 
   }
   else if(t){
@@ -89,9 +89,9 @@ return 0;
 
 /* Creates tar file with given path list 
   Returns nothing */
-void ctar(int argc, char *argv[], int v) {
+void ctar(int argc, char *argv[], int v, int S) {
   int output; 
-  int i, n, j;
+  int i;
   char block[BLOCK];
   
   for(i = 0; i < BLOCK; i++) {
@@ -105,14 +105,9 @@ void ctar(int argc, char *argv[], int v) {
     exit(-1);  
   }
   /* calls for each of the paths readCPath() 
-<<<<<<< HEAD
     and will create a header + if regular file ouput contents */
-    
-=======
-    and will create a header + if regular file ouput contents */  
->>>>>>> 7645d87c62d82cdae5e21e3853de7c5ebad488de
   for (i = 3; i < argc; i++){
-    readCPath(argv[i], output, v);
+    readCPath(argv[i], output, v, S);
   }
 
   /* Write 2 null blocks at the end */
@@ -130,13 +125,12 @@ void ctar(int argc, char *argv[], int v) {
     perror("close");
     exit(-1);
   }
-  
 }
 
 /* Recursively reads all directories and files in path 
    And calls other function createHeader for it.
    Returns nothing. */
-void readCPath(char *path, int output, int v){
+void readCPath(char *path, int output, int v, int S){
   DIR *d;
   struct stat lst_b;
   struct stat st_b;
@@ -156,22 +150,22 @@ void readCPath(char *path, int output, int v){
 
   /* Regular file condition */
   if(S_ISREG(lst_b.st_mode)) {
-    createHeader('0', lst_b, path, output, v);
+    createHeader('0', lst_b, path, output, v, S);
   }
 
 
   /* Regular file sym link condition */
   else if(S_ISLNK(lst_b.st_mode) && S_ISREG(st_b.st_mode)){
-    createHeader('2', lst_b, path, output, v); 
-    createHeader('0', st_b, path, output, v); 
+    createHeader('2', lst_b, path, output, v, S); 
+    createHeader('0', st_b, path, output, v, S); 
   }
   /* Directory condition */
   else if(S_ISDIR(st_b.st_mode)){
     /* Sym Link Directory */
     if(S_ISLNK(lst_b.st_mode)){ 
-      createHeader('2', lst_b, path, output, v); 
+      createHeader('2', lst_b, path, output, v, S); 
     }
-    createHeader('5', st_b, path,  output, v);
+    createHeader('5', st_b, path,  output, v, S);
 
     if((d = opendir(path)) == NULL) {
       perror("open");
@@ -184,7 +178,7 @@ void readCPath(char *path, int output, int v){
         strcpy(cur_path, path);
         strcat(cur_path, "/");
         strcat(cur_path, entry->d_name);
-        readCPath(cur_path, output, v); 
+        readCPath(cur_path, output, v, S); 
       }
     }
     if(closedir(d) == -1){
@@ -204,11 +198,11 @@ void readCPath(char *path, int output, int v){
 /* struct that's a header- where we fill in the correct information */
 /* at end of header format it and place it into the tar file */
 void createHeader(char typeflag, struct stat sb,
- char *path, int output, int v){
+ char *path, int output, int v, int S){
   header_struct header;
   struct passwd *pw;
   struct group *grp;
-  int open_file;
+  int open_file = 0;
   char *path_help;
   char *buffer;
   int num = 0;
@@ -237,6 +231,7 @@ void createHeader(char typeflag, struct stat sb,
     return;
   }
   else {
+    //look over this!
     /* j is index that we have the slash */
     i = strlen(path) - 1;
     path_help = path + i; 
@@ -261,7 +256,11 @@ void createHeader(char typeflag, struct stat sb,
   /* Mode */
   snprintf(header.mode, MODE_LENGTH, "%07o", sb.st_mode & FILLED_UMASK);
   /* Uid */
-  if(sb.st_uid < MAX_ID) {
+  if(sb.st_uid <= MAX_ID) {
+    if(S) {
+      free(buffer);
+      return;
+    }
     snprintf(header.uid, UID_LENGTH, "%07o", sb.st_uid);
   }
   else {
