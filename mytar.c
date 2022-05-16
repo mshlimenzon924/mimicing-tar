@@ -165,6 +165,7 @@ void readCPath(char *path, int output, int v, int S){
     if(S_ISLNK(lst_b.st_mode)){ 
       createHeader('2', lst_b, path, output, v, S); 
     } else {
+      strcat(path, "/");
       createHeader('5', st_b, path,  output, v, S);
       if((d = opendir(path)) == NULL) {
         perror("open");
@@ -175,7 +176,6 @@ void readCPath(char *path, int output, int v, int S){
       while((entry = readdir(d)) != NULL) {
         if(strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")){
           strcpy(cur_path, path);
-          strcat(cur_path, "/");
           strcat(cur_path, entry->d_name);
           readCPath(cur_path, output, v, S); 
         }
@@ -218,7 +218,7 @@ void createHeader(char typeflag, struct stat sb,
 
   /*fill header with correct stuff */
   memset(&header, 0, BLOCK);
-  /* Name */
+  /* Name */ /* EDIT THIS LATER< THINKING ABOUT IT */
   if(strlen(path) <= NAME_LENGTH) {
     memcpy(header.name, path, strlen(path)); 
   }
@@ -227,7 +227,7 @@ void createHeader(char typeflag, struct stat sb,
     return;
   }
   else {
-    //look over this!
+    /*look over this!*/
     /* j is index that we have the slash */
     i = strlen(path) - 1;
     path_help = path + i; 
@@ -396,12 +396,12 @@ void createHeader(char typeflag, struct stat sb,
       exit(-1);
     }
 
-    /* Print out path if v */
+  }
+
+  /* Print out path if v */
     if(v) {
       printf("%s\n", path); 
     }
-
-  }
 
   free(buffer);
 
