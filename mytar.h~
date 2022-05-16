@@ -10,7 +10,6 @@
 #include <sys/types.h>
 #include <limits.h>
 #include <dirent.h>
-#include <arpa/inet.h>
 #include <grp.h>
 #include <pwd.h>
 #define BLOCK 512
@@ -35,9 +34,8 @@
 
 void ctar(int argc, char *argv[], int v);
 void readCPath(char *path, int output, int v);
-int insert_special_int(char *where, size_t size, int32_t val);
-void createHeader(char typeflag, struct stat sb,
-		  char *path, int output, int v);
+int insert_special_int(char *where, size t size, int32 t val);
+void createHeader(char typeflag, struct stat sb, char *path, int output, int v);
 int NotatEnd(int tar_file);
 int ttar(char *arguments[], int vFlag, int SFlag);
 int trecurse_through_path(int tar_file, int verbose);

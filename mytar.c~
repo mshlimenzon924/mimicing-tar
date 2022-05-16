@@ -5,9 +5,9 @@
    single file.
  */
 
+// do we need to use unbuffered io?
 #include "mytar.h"
 
-/* Main function. Returns 0 on success */
 int main(int argc, char *argv[]) {
   int c = 0, t = 0, x = 0;
   int v = 0, f= 0, S = 0;
@@ -83,12 +83,10 @@ int main(int argc, char *argv[]) {
 return 0;
 }
 
-/* Creates tar file with given path list. 
-   Returns nothing.  */
+/* Creates tar file with given path list */
 void ctar(int argc, char *argv[], int v) {
   int output; 
   char block[BLOCK];
-  int i;
   
   for(i = 0; i < BLOCK; i++) {
     block[i] = '\0';
@@ -106,12 +104,12 @@ void ctar(int argc, char *argv[], int v) {
   }
   
   /* Write 2 null blocks at the end */
-  if(write(output, block, BLOCK) == -1) {
+  if(write(output, block, BLOCK)) {
     perror("write");
     exit(-1);
   }
 
-  if(write(output, block, BLOCK) == -1) {
+  if(write(output, block, BLOCK)) {
     perror("write");
     exit(-1);
   }
@@ -187,11 +185,9 @@ void readCPath(char *path, int output, int v){
  
 }  
 
-/* Using given path, takes all data and puts it into a struct
-   struct that's a header- where we fill in the correct information 
-   at end of header format it and place it into the tar file.
-   Returns nothing.
-   */
+/* Using given path, takes all data and puts it into a struct */
+/* struct that's a header- where we fill in the correct information */
+/* at end of header format it and place it into the tar file */
 void createHeader(char typeflag, struct stat sb, 
                   char *path, int output, int v) {
   header_struct header;
@@ -200,7 +196,6 @@ void createHeader(char typeflag, struct stat sb,
   int open_file;
   char *path_help;
   char *buffer;
-  int num = 0;
   int i = 0, j = 0, sum = 0;
   int count = 0;
 
@@ -225,7 +220,7 @@ void createHeader(char typeflag, struct stat sb,
   else {
     /* j is index that we have the slash */
     i = strlen(path) - 1;
-    path_help = path + i; 
+    path help = path + i; 
     /* Because slash is being taken out so 
        we check 101 indices instead */
     while(i > strlen(path) - NAME_LENGTH - 2) {  
@@ -248,8 +243,8 @@ void createHeader(char typeflag, struct stat sb,
     snprintf(header.uid, UID_LENGTH, "%07o", sb.st_uid);
   }
   else {
-    if(insert_special_int(header.uid, UID_LENGTH, sb.st_uid)) {
-      perror("Issue with shortening user ID.\n");
+    if(insert_special_int(header.iud, UID_LENGTH, sb.st_uid)) {
+      perror("Issue with inserting uid into special int.\n");
       return;
     }
   }
@@ -301,7 +296,7 @@ void createHeader(char typeflag, struct stat sb,
   if(write(output, path_help, BLOCK) == -1) {
       perror("write");
       exit(-1);
-  } 
+    } 
 
   /* If regular file, add all of files contents */
   if(S_ISREG(sb.st_mode)) {
@@ -314,28 +309,9 @@ void createHeader(char typeflag, struct stat sb,
         perror("write");
         exit(-1);
       }
-      count = num;
-    }
-
-    if(num < 0) {
-      perror("write");
-      exit(-1);
-    }
-    memset(buffer, 0, BUFF_SIZE);
-    if(count % BLOCK != 0) {
-      if(write(output, buffer, BLOCK - count % BLOCK) 
-         != BLOCK - count % BLOCK) {
-        perror("write");
-        exit(-1);
-      }
-    }
-
-    if(num < 0) {
-      perror("write");
-      exit(-1);
+      memset(buffer, 0, BUFF_SIZE);
     }
   }
-
   if(close(open_file) == -1){
     perror("close");
     exit(-1);
@@ -343,28 +319,30 @@ void createHeader(char typeflag, struct stat sb,
   free(buffer);
 }
 
-
-  /* Function Nico gave us */
+/* Function given to us by Nico */
+int insert special int(char *where, size t size, int32 t val) {
   /* For interoperability with GNU tar. GNU seems to
-   * set the high–order bit of the first byte, then
-   * treat the rest of the field as a binary integer
-   * in network byte order.
-   * Insert the given integer into the given field
-   * using this technique. Returns 0 on success, nonzero
-   * otherwise.
-   */
-int insert_special_int(char *where, size_t size, int32_t val) {
-  int err = 0;
-  if(val < 0 || (size < sizeof(val))) { 
+  * set the high–order bit of the first byte, then
+  * treat the rest of the field as a binary integer
+  * in network byte order.
+  * Insert the given integer into the given field
+  * using this technique. Returns 0 on success, nonzero
+  * otherwise
+  */
+  int err=0;
+    if ( val < 0 || ( size < sizeof(val)) ) {
+    /* if it’s negative, bit 31 is set and we can’t use the flag
+    * if len is too small, we can’t write it. Either way, we’re
+    * done.
+    */
     err++;
-  } 
-  else {
+  } else {
+    /* game on....*/
     memset(where, 0, size); /* Clear out the buffer */
-    *(int32_t *)(where + size - sizeof(val)) = htonl(val);
-    /* place the int */
+    *(int32 t *)(where+size−sizeof(val)) = htonl(val); /* place the int */
     *where |= 0x80; /* set that high–order bit */
   }
-return err;
+  return err;
 }
 
 
