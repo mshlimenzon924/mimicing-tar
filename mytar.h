@@ -35,12 +35,13 @@
 #define PREFIX_LENGTH 155
 #define FILLED_UMASK 07777
 #define MAX_ID 07777777
+#define MAX_SIZE 077777777777
 
-void ctar(int argc, char *argv[], int v);
-void readCPath(char *path, int output, int v);
+void ctar(int argc, char *argv[], int v, int S);
+void readCPath(char *path, int output, int v, int S);
 int insert_special_int(char *where, size_t size, int32_t val);
 void createHeader(char typeflag, struct stat sb,
- char *path, int output, int v);
+ char *path, int output, int v, int S);
 int NotatEnd(int tar_file);
 int ttar(char *arguments[], int argc, int vFlag, int SFlag);
 int trecurse_through_path(int tar_file, int verbose, 

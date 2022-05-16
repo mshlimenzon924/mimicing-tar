@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
       perror("Usage: mytar [ctxvS]f tarfile path\n");
       exit(-1);
     }
-    ctar(argc, argv, v);
+    ctar(argc, argv, v, S);
 
   }
   else if(t){
@@ -89,9 +89,9 @@ return 0;
 
 /* Creates tar file with given path list 
   Returns nothing */
-void ctar(int argc, char *argv[], int v) {
+void ctar(int argc, char *argv[], int v, int S) {
   int output; 
-  int i, n, j;
+  int i;
   char block[BLOCK];
   
   for(i = 0; i < BLOCK; i++) {
@@ -107,7 +107,7 @@ void ctar(int argc, char *argv[], int v) {
   /* calls for each of the paths readCPath() 
     and will create a header + if regular file ouput contents */  
   for (i = 3; i < argc; i++){
-    readCPath(argv[i], output, v);
+    readCPath(argv[i], output, v, S);
   }
 
   /* Write 2 null blocks at the end */
@@ -125,13 +125,12 @@ void ctar(int argc, char *argv[], int v) {
     perror("close");
     exit(-1);
   }
-  
 }
 
 /* Recursively reads all directories and files in path 
    And calls other function createHeader for it.
    Returns nothing. */
-void readCPath(char *path, int output, int v){
+void readCPath(char *path, int output, int v, int S){
   DIR *d;
   struct stat lst_b;
   struct stat st_b;
@@ -151,7 +150,7 @@ void readCPath(char *path, int output, int v){
 
   /* Regular file condition */
   if(S_ISREG(lst_b.st_mode)) {
-    createHeader('0', lst_b, path, output, v);
+    createHeader('0', lst_b, path, output, v, S);
   }
 
 
@@ -199,11 +198,11 @@ void readCPath(char *path, int output, int v){
 /* struct that's a header- where we fill in the correct information */
 /* at end of header format it and place it into the tar file */
 void createHeader(char typeflag, struct stat sb,
- char *path, int output, int v){
+ char *path, int output, int v, int S){
   header_struct header;
   struct passwd *pw;
   struct group *grp;
-  int open_file;
+  int open_file = 0;
   char *path_help;
   char *buffer;
   int num = 0;
@@ -217,11 +216,6 @@ void createHeader(char typeflag, struct stat sb,
     exit(-1);
   }
 
-  /* Print out path if v */
-  if(v) {
-    printf("%s\n", path); 
-  }
-
   /*fill header with correct stuff */
   memset(&header, 0, BLOCK);
   /* Name */
@@ -233,6 +227,7 @@ void createHeader(char typeflag, struct stat sb,
     return;
   }
   else {
+    //look over this!
     /* j is index that we have the slash */
     i = strlen(path) - 1;
     path_help = path + i; 
@@ -257,7 +252,11 @@ void createHeader(char typeflag, struct stat sb,
   /* Mode */
   snprintf(header.mode, MODE_LENGTH, "%07o", sb.st_mode & FILLED_UMASK);
   /* Uid */
-  if(sb.st_uid < MAX_ID) {
+  if(sb.st_uid <= MAX_ID) {
+    if(S) {
+      free(buffer);
+      return;
+    }
     snprintf(header.uid, UID_LENGTH, "%07o", sb.st_uid);
   }
   else {
@@ -268,12 +267,33 @@ void createHeader(char typeflag, struct stat sb,
   }
 
   /* Gid */
-  snprintf(header.gid, GID_LENGTH, "%07o", sb.st_gid);
+  if(sb.st_gid <= MAX_ID) {
+    if(S) {
+      free(buffer);
+      return;
+    }
+    snprintf(header.gid, GID_LENGTH, "%07o", sb.st_gid);
+  }
+  else {
+    if(insert_special_int(header.gid, GID_LENGTH, sb.st_gid)) {
+      perror("Issue with shortening user GID.\n");
+      return;
+    }
+  }
+
   /* chksum first filled with spaces */
   snprintf(header.chksum, CHKSUM_LENGTH, "        ");
   /* Size */
   if(S_ISREG(sb.st_mode)) {
-    snprintf(header.size, SIZE_LENGTH, "%011o", (int)sb.st_size);
+    if((int)sb.st_size > MAX_SIZE) {
+      if(insert_special_int(header.size, SIZE_LENGTH, (int)sb.st_size)) {
+        perror("Issue with shortening size.\n");
+        return;
+      }
+    }
+    else {
+      snprintf(header.size, SIZE_LENGTH, "%011o", (int)sb.st_size);
+    }
   }
   else {
     snprintf(header.size, SIZE_LENGTH, "%011o", 0);
@@ -338,19 +358,19 @@ void createHeader(char typeflag, struct stat sb,
   /* Write into output the header we just populated */
   if(write(output, path_help, BLOCK) == -1) {
       perror("write");
-      exit(-1);
+      return;
   } 
 
   /* If regular file, add all of files contents */
   if(S_ISREG(sb.st_mode)) {
     if((open_file = open(path, O_RDONLY)) < 0) {
       perror(path);
-      exit(-1);
+      return;
     }
     while((num = read(open_file, buffer, BUFF_SIZE)) > 0){
       if(write(output, buffer, num) != num) {
         perror("write");
-        exit(-1);
+        return;
       }
       count = num;
     }
@@ -359,6 +379,7 @@ void createHeader(char typeflag, struct stat sb,
       perror("write");
       exit(-1);
     }
+
     /* If we didn't write in a full BLOCK, fill rest
        of block with zeroes */
     memset(buffer, 0, BUFF_SIZE);
@@ -366,7 +387,7 @@ void createHeader(char typeflag, struct stat sb,
       if(write(output, buffer, BLOCK - count % BLOCK) 
          != BLOCK - count % BLOCK) {
         perror("write");
-        exit(-1);
+        return;
       }
     }
 
@@ -374,6 +395,12 @@ void createHeader(char typeflag, struct stat sb,
       perror("write");
       exit(-1);
     }
+
+    /* Print out path if v */
+    if(v) {
+      printf("%s\n", path); 
+    }
+
   }
 
   free(buffer);
