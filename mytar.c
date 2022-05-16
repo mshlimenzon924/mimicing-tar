@@ -295,8 +295,7 @@ void createHeader(char typeflag, struct stat sb,
     perror("Issue with getpwuid of the uname.\n");
     return;
   }
-  // printf("strlen of pwname %d\n", strlen(pw->pw_name));
-  // printf("%s\n", pw->pw_name);
+
   if(strlen(pw->pw_name) < UNAME_LENGTH) {
     memcpy(header.uname, pw->pw_name, strlen(pw->pw_name));
   }
@@ -309,8 +308,7 @@ void createHeader(char typeflag, struct stat sb,
     perror("Issue with getgruid of the gname.\n");
     return;
   }
-  // printf("strlen of gname %d\n", strlen(grp->gr_name));
-  // printf("%s\n", grp->gr_name);
+
   if(strlen(grp->gr_name) < GNAME_LENGTH) {
     memcpy(header.gname, grp->gr_name, strlen(grp->gr_name));
   }
