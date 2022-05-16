@@ -37,10 +37,10 @@
 #define MAX_ID 07777777
 
 void ctar(int argc, char *argv[], int v);
-void readCPath(char *path, char *name, int output, int v);
+void readCPath(char *path, int output, int v);
 int insert_special_int(char *where, size_t size, int32_t val);
 void createHeader(char typeflag, struct stat sb,
-		  char *path,char *link, int output, int v);
+ char *path, int output, int v);
 int NotatEnd(int tar_file);
 int ttar(char *arguments[], int argc, int vFlag, int SFlag);
 int trecurse_through_path(int tar_file, int verbose, int is_path, char* name);
