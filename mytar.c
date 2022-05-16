@@ -15,8 +15,8 @@ int main(int argc, char *argv[]) {
 
   /* If no arguments */
   if(argc < 3)  {
-    printf ("Missing argument/s\n"); 
-    printf("Usage: mytar [ctxvS]f tarfile\n");
+    perror("Missing argument/s\n"); 
+    perror("Usage: mytar [ctxvS]f tarfile\n");
     exit(-1);
   }
 
@@ -41,38 +41,38 @@ int main(int argc, char *argv[]) {
       f++;
     }
     else {  
-      printf("Usage: mytar [ctxvS]f tarfile\n");
+      perror("Usage: mytar [ctxvS]f tarfile\n");
       exit(-1);
     }
   
   }
   /* if ctv empty */
   if((c + t + x) == 0) {
-    printf ("Need to specify one of -c, -t, or -x\n"); 
-    printf("Usage: mytar [ctxvS]f tarfile\n");
+    perror("Need to specify one of -c, -t, or -x\n"); 
+    perror("Usage: mytar [ctxvS]f tarfile\n");
     exit(-1);
   }
   /* if more than one letter selected */
   if((c + t + x) > 1){ 
-    printf ("Only choose one of -c, -t, or -x\n"); 
-    printf("Usage: mytar [ctxvS]f tarfile\n");
+    perror("Only choose one of -c, -t, or -x\n"); 
+    perror("Usage: mytar [ctxvS]f tarfile\n");
     exit(-1);
   }
   /* missing f */
   if(!f) {
-    printf ("Missing -f\n"); 
-    printf("Usage: mytar [ctxvS]f tarfile\n");
+    perror("Missing -f\n"); 
+    perror("Usage: mytar [ctxvS]f tarfile\n");
     exit(-1);
   }
   if((f - 1 > 0) || (v - 1 > 0) || (S- 1 > 0)) {
-    printf ("Only choose one for -v, -S, and -f\n"); 
-    printf("Usage: mytar [ctxvS]f tarfile\n");
+    perror("Only choose one for -v, -S, and -f\n"); 
+    perror("Usage: mytar [ctxvS]f tarfile\n");
   }
   
   if(c) {
     if(argc == 3) {
-      printf("No files or directories specified\n");
-      printf("Usage: mytar [ctxvS]f tarfile path\n");
+      perror("No files or directories specified\n");
+      perror("Usage: mytar [ctxvS]f tarfile path\n");
       exit(-1);
     }
     ctar(argc, argv, v);
