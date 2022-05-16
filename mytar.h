@@ -48,9 +48,6 @@
 #define LIST_PERMISSIONS 10
 #define LIST_OW_GR 17
 #define LIST_SIZE 8
-#define MTIME 16
-
-#define PRINTMTIME 18
 #define ARGV_FIRST_PATH_INDEX 3
 
 void ctar(int argc, char *argv[], int v, int S);
