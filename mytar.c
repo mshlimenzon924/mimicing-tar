@@ -811,6 +811,12 @@ int trecurse_through_path(int tar_file, int verbose, int is_path, char* path){
   read(tar_file, excess, 12);
   free(excess);
 
+  magic[5] = NULL;
+  if (strcmp(magic, "ustar")){
+    perror("Bad tar file, listing.\n");
+    exit(EXIT_FAILURE);
+  }
+
   if (is_path){
     path_length = strlen(path);
     name_length = strlen(name);
