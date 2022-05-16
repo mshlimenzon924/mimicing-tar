@@ -43,7 +43,8 @@ void createHeader(char typeflag, struct stat sb,
  char *path, int output, int v);
 int NotatEnd(int tar_file);
 int ttar(char *arguments[], int argc, int vFlag, int SFlag);
-int trecurse_through_path(int tar_file, int verbose, int is_path, char* name);
+int trecurse_through_path(int tar_file, int verbose, 
+int is_path, int argc, char** path);
 int NotatEnd(int tar_file);
 int xtar_recurse(int tar_file, int verbose, int is_path, 
 char** path, int num_p);

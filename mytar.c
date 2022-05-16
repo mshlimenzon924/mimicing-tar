@@ -268,6 +268,7 @@ void createHeader(char typeflag, struct stat sb,
       return;
     }
   }
+
   /* Gid */
   snprintf(header.gid, GID_LENGTH, "%07o", sb.st_gid);
   /* chksum first filled with spaces */
@@ -746,26 +747,26 @@ int ttar(char *arguments[], int argc, int vFlag, int SFlag) {
       if (offset < 0){
         printf(stderr, "Lseek error %d.\n", offset);
       }
-      trecurse_through_path(tar_file, vFlag, 0, NULL);
+      trecurse_through_path(tar_file, vFlag, 0, argc, NULL);
     }
   } else {
-    for (i = 3; i < argc; i++){
-      while (NotatEnd(tar_file)){
-        offset = lseek(tar_file, -1024, SEEK_CUR);
-        if (offset < 0){
-          printf(stderr, "Lseek error %d.\n", offset);
-        }
-        trecurse_through_path(tar_file, vFlag, 1, arguments[i]);
+  
+    while (NotatEnd(tar_file)){
+      offset = lseek(tar_file, -1024, SEEK_CUR);
+      if (offset < 0){
+        printf(stderr, "Lseek error %d.\n", offset);
       }
-      offset = lseek(tar_file, SEEK_SET, 0);
+      trecurse_through_path(tar_file, vFlag, 1, argc, arguments);
     }
+    offset = lseek(tar_file, SEEK_SET, 0);
   }
 
   /* Return without errors */
   return 0;
 }
 
-int trecurse_through_path(int tar_file, int verbose, int is_path, char* path){
+int trecurse_through_path(int tar_file, int verbose, 
+int is_path, int argc, char** path){
   /* Declares Variables */
   char *delete_block, *eptr, *writer;
   char *output = (char*)malloc(sizeof(char) * 356);
@@ -791,7 +792,7 @@ int trecurse_through_path(int tar_file, int verbose, int is_path, char* path){
   char *gname = (char*)malloc(sizeof(char) * 32);
   char *devmajor = (char*)malloc(sizeof(char) * 8);
   char *devminor = (char*)malloc(sizeof(char) * 8);
-  char *prefix = (char*)malloc(sizeof(char) * 155);
+  char *prefix = (char*)malloc(sizeof(char) * 156);
   char *excess = (char*)malloc(sizeof(char) * 12);
   char *copied = (char*)malloc(sizeof(char) * 256);
 
@@ -820,25 +821,30 @@ int trecurse_through_path(int tar_file, int verbose, int is_path, char* path){
     exit(EXIT_FAILURE);
   }
 
+  name[100] = NULL;
+  prefix[155] = NULL;
+
   if (is_path){
-    path_length = strlen(path);
-    name_length = strlen(name);
-    /* Come back to this */
-    prefix_length = strlen(prefix);
-    if (prefix_length + name_length >= path_length){
+    for (i = 3; i < argc; i++){
+      path_length = strlen(path[i]);
+      name_length = strlen(name);
+      /* Come back to this */
+      prefix_length = strlen(prefix);
+      if (prefix_length + name_length >= path_length){
 
-      if (prefix_length != 0){
-        strcpy(copied, prefix);
-        strncpy(&copied[strlen(prefix)], name, path_length - prefix_length);
-      } else {
-        strncpy(copied, name, path_length);
-      }
-      copied[path_length] = NULL;
+        if (prefix_length != 0){
+          strcpy(copied, prefix);
+          strncpy(&copied[strlen(prefix)], name, path_length - prefix_length);
+        } else {
+          strncpy(copied, name, path_length);
+        }
+        copied[path_length] = NULL;
 
-      if (strcmp(copied, path) == 0){
-        is_in_path = 1;
+        if (strcmp(copied, path[i]) == 0){
+          is_in_path = 1;
+        }
+        
       }
-      
     }
 
   }
@@ -947,7 +953,7 @@ int trecurse_through_path(int tar_file, int verbose, int is_path, char* path){
     
   } else {
     value = strtol(size, &eptr, 8);
-    snprintf(size, 8, "%8d ", value);
+    snprintf(size, 9, "%8d", value);
   }
   /* SIZE */
   /* Convert from octal to int and then
