@@ -116,7 +116,7 @@ void ctar(int argc, char *argv[], int v) {
         j = 0;
       }
     }
-    name[j] = NULL;
+    name[j] = '\0';
     
 
     readCPath(argv[i], name, output, v);
@@ -309,14 +309,28 @@ void createHeader(char typeflag, struct stat sb,
     perror("Issue with getpwuid of the uname.\n");
     return;
   }
-  memcpy(header.uname, pw->pw_name, UNAME_LENGTH - 1);
+  // printf("strlen of pwname %d\n", strlen(pw->pw_name));
+  // printf("%s\n", pw->pw_name);
+  if(strlen(pw->pw_name) < UNAME_LENGTH) {
+    memcpy(header.uname, pw->pw_name, strlen(pw->pw_name));
+  }
+  else {
+    memcpy(header.uname, pw->pw_name, UNAME_LENGTH - 1);
+  }
   
   /* Gname */
   if((grp = getgrgid(sb.st_gid)) == NULL) {
     perror("Issue with getgruid of the gname.\n");
     return;
   }
-  memcpy(header.gname, grp->gr_name, GNAME_LENGTH - 1);
+  // printf("strlen of gname %d\n", strlen(grp->gr_name));
+  // printf("%s\n", grp->gr_name);
+  if(strlen(grp->gr_name) < GNAME_LENGTH) {
+    memcpy(header.gname, grp->gr_name, strlen(grp->gr_name));
+  }
+  else {
+    memcpy(header.gname, grp->gr_name, GNAME_LENGTH - 1);
+  }
 
   /* device number doesn't matter */
 
