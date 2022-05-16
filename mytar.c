@@ -106,19 +106,6 @@ void ctar(int argc, char *argv[], int v) {
   }
   /* calls for each of the paths readCPath() 
     and will create a header + if regular file ouput contents */
-<<<<<<< HEAD
-=======
-  for(i = 3; i < argc; i++){
-    j = 0;
-    for(n = 0; n < strlen(argv[i]); n++){
-      if (argv[i][n] != '/'){
-        name[j++] = argv[i][n];
-      } else if (n != strlen(argv[i])){
-        j = 0;
-      }
-    }
-    name[j] = '\0';
->>>>>>> cedde4ab788ebdec9d8468aa92b4841ead2dd83f
     
   for (i = 3; i < argc; i++){
     readCPath(argv[i], output, v);
