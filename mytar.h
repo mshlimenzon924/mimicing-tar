@@ -17,25 +17,38 @@
 #include <grp.h>
 #include <pwd.h>
 #define BLOCK 512
+#define TWOBLOCKS -1024
+#define ALPHABET 356
 #define BUFF_SIZE 4096
-#define NAME_LENGTH 100
 #define MAX_PATH 256
+#define NAME_LENGTH 100
 #define MODE_LENGTH 8
 #define UID_LENGTH 8
 #define GID_LENGTH 8
 #define SIZE_LENGTH 12
 #define MTIME_LENGTH 12
 #define CHKSUM_LENGTH 8
+#define TYPE_LENGTH 1
 #define LINKNAME_LENGTH 100
 #define MAGIC_LENGTH 6
+#define VERSION_LENGTH 2
 #define UNAME_LENGTH 32
 #define GNAME_LENGTH 32
 #define DEVMAJOR_LENGTH 8
 #define DEVMINOR_LENGTH 8
 #define PREFIX_LENGTH 155
 #define FILLED_UMASK 07777
+#define EXCESS_LENGTH 12
 #define MAX_ID 07777777
 #define MAX_SIZE 077777777777
+#define DIRTYPEFLAG '5'
+#define LINKTYPEFLAG '2'
+#define REGTYPEFLAG '0'
+#define OTHERREGTYPEFLAG '\0'
+#define LIST_PERMISSIONS 10
+#define LIST_OW_GR 17
+#define LIST_SIZE 8
+#define ARGV_FIRST_PATH_INDEX 3
 
 void ctar(int argc, char *argv[], int v, int S);
 void readCPath(char *path, int output, int v, int S);
@@ -71,5 +84,3 @@ typedef struct header_struct {
     char empty[12];
 } header_struct;
 #endif
-
-
