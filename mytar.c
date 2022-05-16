@@ -156,16 +156,16 @@ void readCPath(char *path, int output, int v, int S){
 
   /* Regular file sym link condition */
   else if(S_ISLNK(lst_b.st_mode) && S_ISREG(st_b.st_mode)){
-    createHeader('2', lst_b, path, output, v); 
+    createHeader('2', lst_b, path, output, v, S); 
     /*createHeader('0', st_b, path, output, v);*/ 
   }
   /* Directory condition */
   else if(S_ISDIR(st_b.st_mode)){
     /* Sym Link Directory */
     if(S_ISLNK(lst_b.st_mode)){ 
-      createHeader('2', lst_b, path, output, v); 
+      createHeader('2', lst_b, path, output, v, S); 
     } else {
-      createHeader('5', st_b, path,  output, v);
+      createHeader('5', st_b, path,  output, v, S);
       if((d = opendir(path)) == NULL) {
         perror("open");
         exit(-1);
@@ -177,7 +177,7 @@ void readCPath(char *path, int output, int v, int S){
           strcpy(cur_path, path);
           strcat(cur_path, "/");
           strcat(cur_path, entry->d_name);
-          readCPath(cur_path, output, v); 
+          readCPath(cur_path, output, v, S); 
         }
       }
       if(closedir(d) == -1){

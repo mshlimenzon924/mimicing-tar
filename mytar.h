@@ -41,7 +41,7 @@ void ctar(int argc, char *argv[], int v, int S);
 void readCPath(char *path, int output, int v, int S);
 int insert_special_int(char *where, size_t size, int32_t val);
 void createHeader(char typeflag, struct stat sb,
- char *path, int output, int v, int S);
+char *path, int output, int v, int S);
 int NotatEnd(int tar_file);
 int ttar(char *arguments[], int argc, int vFlag, int SFlag);
 int trecurse_through_path(int tar_file, int verbose, 
