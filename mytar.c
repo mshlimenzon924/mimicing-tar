@@ -9,15 +9,18 @@
 
 /* Main function. Returns 0 on success */
 int main(int argc, char *argv[]) {
+  /* Flags */
   int c = 0, t = 0, x = 0;
   int v = 0, f= 0, S = 0;
-  int i = 0;
+  int i = 0; /* variable for for loop */
 
+  /* If no arguments */
   if(argc < 3)  {
     perror("Missing argument/s\n"); 
     perror("Usage: mytar [ctxvS]f tarfile\n");
     exit(-1);
   }
+  /* For loop to fill up flags */
   for(; i < strlen(argv[1]); i++) {
     if(argv[1][i] == 'c') {
       c++;
@@ -42,7 +45,7 @@ int main(int argc, char *argv[]) {
       exit(-1);
     }
   }
-  /* ctv empty */
+  /* if ctv empty */
   if((c + t + x) == 0) {
     perror("Need to specify one of -c, -t, or -x\n"); 
     perror("Usage: mytar [ctxvS]f tarfile\n");
@@ -54,32 +57,32 @@ int main(int argc, char *argv[]) {
     perror("Usage: mytar [ctxvS]f tarfile\n");
     exit(-1);
   }
-  /* missing f */
+  /* if missing f */
   if(!f) {
     perror("Missing -f\n"); 
     perror("Usage: mytar [ctxvS]f tarfile\n");
     exit(-1);
   }
+  /* If more than one is selected */
   if((f - 1 > 0) || (v - 1 > 0) || (S- 1 > 0)) {
     perror("Only choose one for -v, -S, and -f\n"); 
     perror("Usage: mytar [ctxvS]f tarfile\n");
   }
   
   if(c) {
+    /* If no path name is given */
     if(argc == 3) {
       perror("No files or directories specified\n");
       perror("Usage: mytar [ctxvS]f tarfile path\n");
       exit(-1);
     }
     ctar(argc, argv, v);
-
   }
   else if(t){
     printf("t");    
   } else if(x){
     printf("x");
-  }
-  
+  } 
 return 0;
 }
 
@@ -90,6 +93,7 @@ void ctar(int argc, char *argv[], int v) {
   char block[BLOCK];
   int i;
   
+  /* Block of 512 nulls */
   for(i = 0; i < BLOCK; i++) {
     block[i] = '\0';
   }
@@ -100,7 +104,8 @@ void ctar(int argc, char *argv[], int v) {
     perror("open");
     exit(-1);  
   }
-  /* Calls for each of the paths readCPath() */
+  /* Calls for each of the paths to be put through readCPath() 
+     and will create a header + if regular file ouput contents */
   for(i = 3; i < argc; i++){
     readCPath(argv[i], output, v);
   }
@@ -123,7 +128,7 @@ void ctar(int argc, char *argv[], int v) {
 }
 
 
-/* Recursively reads all directories and files in path 
+/* Recursively reads all directories, files, sym links in path 
    And calls other function createHeader for it.
    Returns nothing. */
 void readCPath(char *path, int output, int v){
@@ -210,11 +215,14 @@ void createHeader(char typeflag, struct stat sb,
     exit(-1);
   }
 
+  /* Print out path if v */
   if(v) {
     printf("%s\n", path); 
   }
+
   /*fill header with correct stuff */
   memset(&header, 0, BLOCK);
+  /* Name */
   if(strlen(path) <= NAME_LENGTH) {
     memcpy(header.name, path, strlen(path)); 
   }
@@ -243,7 +251,9 @@ void createHeader(char typeflag, struct stat sb,
     memcpy(header.prefix, path, j);
     memcpy(header.name, path + j + 1, strlen(path) - j - 1);
   }
+  /* Mode */
   snprintf(header.mode, MODE_LENGTH, "%07o", sb.st_mode & FILLED_UMASK);
+  /* Uid */
   if(sb.st_uid < MAX_ID) {
     snprintf(header.uid, UID_LENGTH, "%07o", sb.st_uid);
   }
@@ -253,32 +263,39 @@ void createHeader(char typeflag, struct stat sb,
       return;
     }
   }
+  /* Gid */
   snprintf(header.gid, GID_LENGTH, "%07o", sb.st_gid);
   /* chksum first filled with spaces */
   snprintf(header.chksum, CHKSUM_LENGTH, "        ");
+  /* Size */
   if(S_ISREG(sb.st_mode)) {
     snprintf(header.size, SIZE_LENGTH, "%011o", (int)sb.st_size);
   }
   else {
     snprintf(header.size, SIZE_LENGTH, "%011o", 0);
   }
+  /* Mtime */
   snprintf(header.mtime, MTIME_LENGTH, "%011o", (int)sb.st_mtime);
   header.typeflag = typeflag;
+  /* Linkname */
   if(S_ISLNK(sb.st_mode)) {
     if(readlink(path, header.linkname, LINKNAME_LENGTH) < 0){
       perror("Issue with readlink.\n");
       return;
     }
   }
+  /* Ustar and version */
   strcpy(header.magic, "ustar"); 
   header.version[0] = '0';
   header.version[1] = '0';
+  /* Uname */
   if((pw = getpwuid(sb.st_uid)) == NULL) {
     perror("Issue with getpwuid of the uname.\n");
     return;
   }
   memcpy(header.uname, pw->pw_name, UNAME_LENGTH - 1);
   
+  /* Gname */
   if((grp = getgrgid(sb.st_gid)) == NULL) {
     perror("Issue with getgruid of the gname.\n");
     return;
@@ -287,6 +304,7 @@ void createHeader(char typeflag, struct stat sb,
 
   /* device number doesn't matter */
 
+  /* Chksum */
   path_help = (char *)&header;
   for(i = 0; i < BLOCK; i++) {
     sum += (unsigned char)(path_help[i]);
@@ -294,10 +312,11 @@ void createHeader(char typeflag, struct stat sb,
   snprintf(header.chksum, CHKSUM_LENGTH, "%07o", sum);
 
   /* For all file errors, it is my executive decision
-     to exit since we are touching memory and these errors 
-     appearing could be bigger issues later */
+     to exit and not ignore since we are touching
+     memory and these errors appearing could be bigger 
+     issues later */
   
-  /* Write into output the header */
+  /* Write into output the header we just populated */
   if(write(output, path_help, BLOCK) == -1) {
       perror("write");
       exit(-1);
@@ -321,6 +340,8 @@ void createHeader(char typeflag, struct stat sb,
       perror("write");
       exit(-1);
     }
+    /* If we didn't write in a full BLOCK, fill rest
+       of block with zeroes */
     memset(buffer, 0, BUFF_SIZE);
     if(count % BLOCK != 0) {
       if(write(output, buffer, BLOCK - count % BLOCK) 
