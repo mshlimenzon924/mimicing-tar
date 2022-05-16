@@ -851,16 +851,19 @@ int is_path, int argc, char** path){
       name_length = strlen(name);
       /* Come back to this */
       prefix_length = strlen(prefix);
-      if (prefix_length + name_length >= path_length){
+      if (prefix_length + name_length + 1 >= path_length){
 
         if (prefix_length != 0){
           strcpy(copied, prefix);
-          strncpy(&copied[strlen(prefix)], name, path_length - prefix_length);
+          strcat(copied, "/");
+          strncpy(&copied[strlen(prefix) + 1], name, path_length -
+          (prefix_length + 1));
+        
         } else {
           strncpy(copied, name, path_length);
         }
         copied[path_length] = NULL;
-
+        /*fprintf(stdout, "%s\n", copied);*/
         if (strcmp(copied, path[i]) == 0){
           is_in_path = 1;
         }
