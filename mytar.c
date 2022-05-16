@@ -215,11 +215,6 @@ void createHeader(char typeflag, struct stat sb,
     exit(-1);
   }
 
-  /* Print out path if v */
-  if(v) {
-    printf("%s\n", path); 
-  }
-
   /*fill header with correct stuff */
   memset(&header, 0, BLOCK);
   /* Name */
@@ -271,12 +266,33 @@ void createHeader(char typeflag, struct stat sb,
   }
 
   /* Gid */
-  snprintf(header.gid, GID_LENGTH, "%07o", sb.st_gid);
+  if(sb.st_gid <= MAX_ID) {
+    if(S) {
+      free(buffer);
+      return;
+    }
+    snprintf(header.gid, GID_LENGTH, "%07o", sb.st_gid);
+  }
+  else {
+    if(insert_special_int(header.gid, GID_LENGTH, sb.st_gid)) {
+      perror("Issue with shortening user GID.\n");
+      return;
+    }
+  }
+
   /* chksum first filled with spaces */
   snprintf(header.chksum, CHKSUM_LENGTH, "        ");
   /* Size */
   if(S_ISREG(sb.st_mode)) {
-    snprintf(header.size, SIZE_LENGTH, "%011o", (int)sb.st_size);
+    if((int)sb.st_size > MAX_SIZE) {
+      if(insert_special_int(header.size, SIZE_LENGTH, (int)sb.st_size)) {
+        perror("Issue with shortening size.\n");
+        return;
+      }
+    }
+    else {
+      snprintf(header.size, SIZE_LENGTH, "%011o", (int)sb.st_size);
+    }
   }
   else {
     snprintf(header.size, SIZE_LENGTH, "%011o", 0);
@@ -338,27 +354,28 @@ void createHeader(char typeflag, struct stat sb,
   /* Write into output the header we just populated */
   if(write(output, path_help, BLOCK) == -1) {
       perror("write");
-      exit(-1);
+      return;
   } 
 
   /* If regular file, add all of files contents */
   if(S_ISREG(sb.st_mode)) {
     if((open_file = open(path, O_RDONLY)) < 0) {
       perror(path);
-      exit(-1);
+      return;
     }
     while((num = read(open_file, buffer, BUFF_SIZE)) > 0){
       if(write(output, buffer, num) != num) {
         perror("write");
-        exit(-1);
+        return;
       }
       count = num;
     }
 
     if(num < 0) {
       perror("write");
-      exit(-1);
+      return;
     }
+
     /* If we didn't write in a full BLOCK, fill rest
        of block with zeroes */
     memset(buffer, 0, BUFF_SIZE);
@@ -366,19 +383,25 @@ void createHeader(char typeflag, struct stat sb,
       if(write(output, buffer, BLOCK - count % BLOCK) 
          != BLOCK - count % BLOCK) {
         perror("write");
-        exit(-1);
+        return;
       }
     }
 
     if(num < 0) {
       perror("write");
-      exit(-1);
+      return;
     }
+
+    /* Print out path if v */
+    if(v) {
+      printf("%s\n", path); 
+    }
+
   }
 
   if(close(open_file) == -1){
     perror("close");
-    exit(-1);
+    return;
   }
   free(buffer);
 

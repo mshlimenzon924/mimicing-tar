@@ -35,6 +35,7 @@
 #define PREFIX_LENGTH 155
 #define FILLED_UMASK 07777
 #define MAX_ID 07777777
+#define MAX_SIZE 077777777777
 
 void ctar(int argc, char *argv[], int v, int S);
 void readCPath(char *path, int output, int v, int S);
