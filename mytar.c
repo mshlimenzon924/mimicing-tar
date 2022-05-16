@@ -373,7 +373,7 @@ void createHeader(char typeflag, struct stat sb,
 
     if(num < 0) {
       perror("write");
-      return;
+      exit(-1);
     }
 
     /* If we didn't write in a full BLOCK, fill rest
@@ -389,7 +389,7 @@ void createHeader(char typeflag, struct stat sb,
 
     if(num < 0) {
       perror("write");
-      return;
+      exit(-1);
     }
 
     /* Print out path if v */
