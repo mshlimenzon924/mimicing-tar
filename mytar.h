@@ -10,6 +10,9 @@
 #include <sys/types.h>
 #include <limits.h>
 #include <dirent.h>
+#include <time.h>
+#include <sys/time.h>
+#include <utime.h>
 #include <arpa/inet.h>
 #include <grp.h>
 #include <pwd.h>
@@ -39,11 +42,12 @@ int insert_special_int(char *where, size_t size, int32_t val);
 void createHeader(char typeflag, struct stat sb,
 		  char *path, int output, int v);
 int NotatEnd(int tar_file);
-int ttar(char *arguments[], int vFlag, int SFlag);
-int trecurse_through_path(int tar_file, int verbose);
+int ttar(char *arguments[], int argc, int vFlag, int SFlag);
+int trecurse_through_path(int tar_file, int verbose, int is_path, char* name);
 int NotatEnd(int tar_file);
-int ttar(char *arguments[], int vFlag, int SFlag);
-int trecurse_through_path(int tar_file, int verbose);
+int xtar_recurse(int tar_file, int verbose, int is_path, 
+char** path, int num_p);
+int xtar(char *arguments[], int argc, int v, int S);
 
 typedef struct header_struct {
     char name[100];
@@ -65,3 +69,5 @@ typedef struct header_struct {
     char empty[12];
 } header_struct;
 #endif
+
+
