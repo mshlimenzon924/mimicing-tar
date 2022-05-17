@@ -106,7 +106,7 @@ void ctar(int argc, char *argv[], int v, int S) {
   }
   /* calls for each of the paths readCPath() 
     and will create a header + if regular file ouput contents */  
-  for (i = ARGV_FIRST_PATH_INDEX; i < argc; i++){
+  for (i = 3; i < argc; i++){
     readCPath(argv[i], output, v, S);
   }
 
@@ -150,20 +150,23 @@ void readCPath(char *path, int output, int v, int S){
 
   /* Regular file condition */
   if(S_ISREG(lst_b.st_mode)) {
-    createHeader(REGTYPEFLAG, lst_b, path, output, v, S);
+    createHeader('0', lst_b, path, output, v, S);
   }
+
+
   /* Regular file sym link condition */
   else if(S_ISLNK(lst_b.st_mode) && S_ISREG(st_b.st_mode)){
-    createHeader(LINKTYPEFLAG, lst_b, path, output, v, S); 
+    createHeader('2', lst_b, path, output, v, S); 
+    /*createHeader('0', st_b, path, output, v);*/ 
   }
   /* Directory condition */
   else if(S_ISDIR(st_b.st_mode)){
     /* Sym Link Directory */
     if(S_ISLNK(lst_b.st_mode)){ 
-      createHeader(LINKTYPEFLAG, lst_b, path, output, v, S); 
+      createHeader('2', lst_b, path, output, v, S); 
     } else {
       strcat(path, "/");
-      createHeader(DIRTYPEFLAG, st_b, path,  output, v, S);
+      createHeader('5', st_b, path,  output, v, S);
       if((d = opendir(path)) == NULL) {
         perror("open");
         exit(-1);
@@ -205,6 +208,7 @@ void createHeader(char typeflag, struct stat sb,
   int num = 0;
   int i = 0, j = 0, sum = 0;
   int count = 0;
+  int chksum = 0;
 
   buffer = (char *)malloc(BUFF_SIZE);
   if(!buffer) {
@@ -214,7 +218,7 @@ void createHeader(char typeflag, struct stat sb,
 
   /*fill header with correct stuff */
   memset(&header, 0, BLOCK);
-  /* Name */ 
+  /* Name */ /* EDIT THIS LATER< THINKING ABOUT IT */
   if(strlen(path) <= NAME_LENGTH) {
     memcpy(header.name, path, strlen(path)); 
   }
@@ -281,7 +285,7 @@ void createHeader(char typeflag, struct stat sb,
   snprintf(header.chksum, CHKSUM_LENGTH, "        ");
   /* Size */
   if(S_ISREG(sb.st_mode)) {
-    if(sb.st_size > MAX_SIZE) {
+    if((int)sb.st_size > MAX_SIZE) {
       if(insert_special_int(header.size, SIZE_LENGTH, (int)sb.st_size)) {
         perror("Issue with shortening size.\n");
         return;
@@ -345,6 +349,11 @@ void createHeader(char typeflag, struct stat sb,
     sum += (unsigned char)(path_help[i]);
   }
   snprintf(header.chksum, CHKSUM_LENGTH, "%07o", sum);
+
+  /* For all file errors, it is my executive decision
+     to exit and not ignore since we are touching
+     memory and these errors appearing could be bigger 
+     issues later */
   
   /* Write into output the header we just populated */
   if(write(output, path_help, BLOCK) == -1) {
@@ -421,12 +430,14 @@ int insert_special_int(char *where, size_t size, int32_t val) {
 return err;
 }
 
+
+
 int xtar(char *arguments[], int argc, int v, int S) {
   /* Declares Variables here */
   /* Check to make sure this is how you can open tar_file */
   int tar_file = open(arguments[2], O_RDONLY | O_CREAT,
    S_IRUSR | S_IWUSR | S_IROTH | S_IWOTH);
-  int offset;
+  int offset, i;
   if (tar_file < 0){
     printf("File unable to be opened.\n");
     exit(EXIT_FAILURE);
@@ -435,18 +446,18 @@ int xtar(char *arguments[], int argc, int v, int S) {
   /*Recursively run through tree within archive  */
   if (argc <= 3){
     while (NotatEnd(tar_file)){
-      offset = lseek(tar_file, TWOBLOCKS, SEEK_CUR);
+      offset = lseek(tar_file, -1024, SEEK_CUR);
       if (offset < 0){
-        fprintf(stderr, "Lseek error %d.\n", offset);
+        printf(stderr, "Lseek error %d.\n", offset);
       }
       xtar_recurse(tar_file, v, 0, NULL, argc);
     }
   } else {
     
     while (NotatEnd(tar_file)){
-      offset = lseek(tar_file, TWOBLOCKS, SEEK_CUR);
+      offset = lseek(tar_file, -1024, SEEK_CUR);
       if (offset < 0){
-        fprintf(stderr, "Lseek error %d.\n", offset);
+        printf(stderr, "Lseek error %d.\n", offset);
       }
       xtar_recurse(tar_file, v, 1, arguments, argc);
     }
@@ -460,58 +471,62 @@ int xtar(char *arguments[], int argc, int v, int S) {
 int xtar_recurse(int tar_file, int verbose, int is_path, 
 char** path, int num_p) {
   /* Declares Variables */
-  char *eptr;
-  char *output = (char*)malloc(sizeof(char) * ALPHABET);
+  char *delete_block, *eptr, *writer;
+  char *output = (char*)malloc(sizeof(char) * 356);
+  char *size_buff = (char*)malloc(sizeof(char) * 8);
+  char typ, *beginning_name;
+  time_t calendar_time;
+  struct tm *local;
   long value;
-  int fail, fd, i;
+  int fail, fd, i, path_length, name_length, prefix_length, times, mask;
   int is_in_path = 0;
-  char *name = (char*)malloc(sizeof(char) * (NAME_LENGTH + 2));
-  char *mode = (char*)malloc(sizeof(char) * MODE_LENGTH);
-  char *uid = (char*)malloc(sizeof(char) * UID_LENGTH);
-  char *gid = (char*)malloc(sizeof(char) * GID_LENGTH);
-  char *size = (char*)malloc(sizeof(char) * SIZE_LENGTH);
-  char *mtime = (char*)malloc(sizeof(char) * MTIME_LENGTH);
-  char *checksum = (char*)malloc(sizeof(char) * CHKSUM_LENGTH);
+  char *name = (char*)malloc(sizeof(char) * 102);
+  char *mode = (char*)malloc(sizeof(char) * 8);
+  char *uid = (char*)malloc(sizeof(char) * 8);
+  char *gid = (char*)malloc(sizeof(char) * 8);
+  char *size = (char*)malloc(sizeof(char) * 12);
+  char *mtime = (char*)malloc(sizeof(char) * 12);
+  char *checksum = (char*)malloc(sizeof(char) * 8);
   char *type = (char*)malloc(sizeof(char));
-  char *linkname = (char*)malloc(sizeof(char) * (LINKNAME_LENGTH + 1));
-  char *magic = (char*)malloc(sizeof(char) * MAGIC_LENGTH);
-  char *version = (char*)malloc(sizeof(char) * VERSION_LENGTH);
-  char *uname= (char*)malloc(sizeof(char) * UNAME_LENGTH);
-  char *gname = (char*)malloc(sizeof(char) * GNAME_LENGTH);
-  char *devmajor = (char*)malloc(sizeof(char) * DEVMAJOR_LENGTH);
-  char *devminor = (char*)malloc(sizeof(char) * DEVMINOR_LENGTH);
-  char *prefix = (char*)malloc(sizeof(char) * (PREFIX_LENGTH + 1));
-  char *excess = (char*)malloc(sizeof(char) * EXCESS_LENGTH);
-  char *copied = (char*)malloc(sizeof(char) * BLOCK);
-  char *buffer = (char *)malloc(sizeof(char) * BLOCK);
-  char *path_buffer = (char *)malloc(sizeof(char) * BLOCK);
+  char *linkname = (char*)malloc(sizeof(char) * 101);
+  char *magic = (char*)malloc(sizeof(char) * 6);
+  char *version = (char*)malloc(sizeof(char) * 2);
+  char *uname= (char*)malloc(sizeof(char) * 32);
+  char *gname = (char*)malloc(sizeof(char) * 32);
+  char *devmajor = (char*)malloc(sizeof(char) * 8);
+  char *devminor = (char*)malloc(sizeof(char) * 8);
+  char *prefix = (char*)malloc(sizeof(char) * 156);
+  char *excess = (char*)malloc(sizeof(char) * 12);
+  char *copied = (char*)malloc(sizeof(char) * 512);
+  char *buffer = (char *)malloc(sizeof(char) * 512);
+  char *path_buffer = (char *)malloc(sizeof(char) * 512);
   struct utimbuf *ubuf = 
   (struct utimbuf *)malloc(sizeof(struct utimbuf));
   struct stat *l_buffer = (struct stat *)malloc(sizeof(struct stat));
   
   /* Reads Headers */
-  read(tar_file, name, NAME_LENGTH);
-  read(tar_file, mode,  MODE_LENGTH);
-  read(tar_file, uid,  UID_LENGTH);
-  read(tar_file, gid,  GID_LENGTH);
-  read(tar_file, size, SIZE_LENGTH);
-  read(tar_file, mtime, MTIME_LENGTH);
-  read(tar_file, checksum, CHKSUM_LENGTH);
-  read(tar_file, type, TYPE_LENGTH);
-  read(tar_file, linkname, LINKNAME_LENGTH);
-  read(tar_file, magic, MAGIC_LENGTH);
-  read(tar_file, version, VERSION_LENGTH);
-  read(tar_file, uname, UNAME_LENGTH);
-  read(tar_file, gname, GNAME_LENGTH);
-  read(tar_file, devmajor, DEVMAJOR_LENGTH);
-  read(tar_file, devminor, DEVMINOR_LENGTH);
-  read(tar_file, prefix, PREFIX_LENGTH);
-  read(tar_file, excess, EXCESS_LENGTH);
+  read(tar_file, name, 100);
+  read(tar_file, mode,  8);
+  read(tar_file, uid,  8);
+  read(tar_file, gid,  8);
+  read(tar_file, size, 12);
+  read(tar_file, mtime, 12);
+  read(tar_file, checksum, 8);
+  read(tar_file, type, 1);
+  read(tar_file, linkname, 100);
+  read(tar_file, magic, 6);
+  read(tar_file, version, 2);
+  read(tar_file, uname, 32);
+  read(tar_file, gname, 32);
+  read(tar_file, devmajor, 8);
+  read(tar_file, devminor, 8);
+  read(tar_file, prefix, 155);
+  read(tar_file, excess, 12);
   free(excess);
 
   /* Null terminated copied and prefix, if needed */
-  name[NAME_LENGTH] = '\0';
-  prefix[PREFIX_LENGTH] = '\0';
+  name[100] = NULL;
+  prefix[155] = NULL;
   
 
   /* If there's a path, check to see if copied matches */
@@ -519,26 +534,25 @@ char** path, int num_p) {
 
     /* If theres no prefix */
     if (strlen(prefix) == 0){
-      for (i = ARGV_FIRST_PATH_INDEX; i < num_p; i++){
+      for (i = 3; i < num_p; i++){
         if(strlen(name) >= strlen(path[i]) ){
           strncpy(copied, name, strlen(path[i]));
-          copied[strlen(path[i])] = '\0';
+          copied[strlen(path[i])] = NULL;
           if(is_in_path = !strcmp(copied, path[i])){
             break;
           }
 
           /* Error comes from names that end in a slash */
-          
+
         }
       }
     } else {
-      for (i = ARGV_FIRST_PATH_INDEX; i < num_p; i++){
-        if (strlen(name) + strlen(prefix) >= strlen(path[i])){
+      for (i = 3; i < num_p; i++){
+        if (strlen(name) + strlen(prefix) + 1 >= strlen(path[i])){
           strcpy(copied, prefix);
           copied[strlen(prefix)] = '/';
-          strncpy(&copied[strlen(prefix) + 1], name, 
-          strlen(path[i]) - (strlen(prefix)+1));
-          copied[strlen(path[i])] = '\0';
+          strcpy(&copied[strlen(prefix) + 1], name);
+          copied[strlen(path[i])] = NULL;
           if (is_in_path = !strcmp(copied, path[i])){
             break;
           }
@@ -551,38 +565,29 @@ char** path, int num_p) {
   if (!is_path || is_in_path){
 
     /* Differentiates based on if its a file, dir, or symlink */
-    if (type[0] == DIRTYPEFLAG){
+    if (type[0] == '5'){
       /* If its a directory */
 
         if (!strlen(prefix)){
-          free(copied);
-          copied = name;
-          copied[strlen(name)] = '\0';
+          strcpy(copied, name);
+          copied[strlen(name)] = NULL;
     
         } else{
           strcpy(copied, prefix);
           copied[strlen(prefix)] = '/';
-          strcpy(&copied[strlen(prefix) + 1], name); /* THIS LINE */
-          copied[strlen(name) + strlen(prefix) + 1] = '\0';
+          strcpy(&copied[strlen(prefix) + 1], name); 
+          copied[strlen(name) + strlen(prefix) + 1] = NULL;
 
         }
         /* Gives execute permissions for all if any have it */
-        value = strtol(mode, &eptr, LIST_PERMISSIONS);
-        if (value % 2 || (value / 10) % 2 || (value / 100) % 2){
-          fail = mkdir(copied, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP 
-          | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
-        } else {
-          fail = mkdir(copied, S_IRUSR | S_IWUSR | S_IRGRP 
-          | S_IWGRP | S_IROTH | S_IWOTH);
-        }
-        /*if (fail < 0){
-          printf(stderr, "Mkdir failed.\n");
-          exit(EXIT_FAILURE);
-        }*/
+        value = strtol(mode, &eptr, 10);
+        fail = mkdir(copied, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP 
+        | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
 
-    } else if (type[0] == LINKTYPEFLAG){
+
+    } else if (type[0] == '2'){
       /* If its a link */
-      linkname[LINKNAME_LENGTH] = '\0';
+      linkname[100] = NULL;
       if (strlen(prefix) == 0){
         fail = symlink(linkname, name);
 
@@ -590,7 +595,7 @@ char** path, int num_p) {
         strcpy(copied, prefix);
         copied[strlen(prefix)] = '/';
         strcpy(&copied[strlen(prefix) + 1], name);
-        copied[strlen(name) + strlen(prefix) + 1] = '\0';
+        copied[strlen(name) + strlen(prefix) + 1] = NULL;
         fail = symlink(linkname, copied);
       }
       if (fail != 0){
@@ -598,21 +603,23 @@ char** path, int num_p) {
         exit(EXIT_FAILURE);
       }
 
+
+
     } else {
       /* If its a regular file  */
       if (strlen(prefix) == 0){
-        free(copied);
-        copied = name;
+        strcpy(copied, name);
+        copied[strlen(name)] = NULL;
       } else {
         strcpy(copied, prefix);
         copied[strlen(prefix)] = '/';
         strcpy(&copied[strlen(prefix) + 1], name);
-        copied[strlen(name) + strlen(prefix) + 1] = '\0';
+        copied[strlen(name) + strlen(prefix) + 1] = NULL;
       }
 
       
       /* If any execute bits are set - give everone execute permissions */
-      value = strtol(mode, &eptr, LIST_PERMISSIONS);
+      value = strtol(mode, &eptr, 10);
       if (value % 2 || (value / 10) % 2 || (value / 100) % 2){
         fd = open(copied, O_RDWR | O_CREAT | O_TRUNC, 
         S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP 
@@ -624,18 +631,18 @@ char** path, int num_p) {
 
       fail = lstat(copied, l_buffer);
       if (fail < 0){
-        fprintf(stderr, "Lstat failed.\n");
+        printf(stderr, "Lstat failed.\n");
         exit(EXIT_FAILURE);
       }
       value = strtol(size, &eptr, 8);
       while (value > 0){
-        fail = read(tar_file, buffer, BLOCK);
+        fail = read(tar_file, buffer, 512);
         if (fail < 0){
-          fprintf(stderr, "Read failed.\n");
+          printf(stderr, "Read failed.\n");
           exit(EXIT_FAILURE);
         }
-        if (value >= BLOCK){
-          write(fd, buffer, BLOCK);
+        if (value >= 512){
+          write(fd, buffer, 512);
         } else {
           write(fd, buffer, value);
         }
@@ -646,7 +653,7 @@ char** path, int num_p) {
       ubuf->modtime = value;
       fail = utime(copied, ubuf);
       if (fail < 0){
-        fprintf(stderr, "Utime failed.\n");
+        printf(stderr, "Utime failed.\n");
         exit(EXIT_FAILURE);
       }
 
@@ -657,50 +664,54 @@ char** path, int num_p) {
       write(STDOUT_FILENO, copied, strlen(copied));
       write(STDOUT_FILENO, "\n", 1);
     }
-  } else if (type[0] == OTHERREGTYPEFLAG || type[0] == REGTYPEFLAG){
+
+    close(fd);
+
+  } else if (type[0] == 0 || type[0] == '0'){
     /* If its a file and we don't read out the contents */
-    value = strtol(size, &eptr, LIST_SIZE);
-    value = value / BLOCK + 1;
+    value = strtol(size, &eptr, 8);
+    value = value / 512 + 1;
     for (i = 0; i < value; i++){
-      lseek(tar_file, BLOCK, SEEK_CUR);
+      lseek(tar_file, 512, SEEK_CUR);
     }
 
 
-  } else if (type[0] == DIRTYPEFLAG){
+  } else if (type[0] == '5'){
     /* If its a directory we need to create for the path */
-    strncpy(path_buffer, path, strlen(copied));
-    if (!strcmp(path_buffer, copied)){
-      if (!strlen(prefix)){
-        free(copied);
-        copied = name;
-        copied[strlen(name)] = '\0';
-    
-      } else{
+    /* ERROR HERE */
+    for (i = 3; i < num_p; i++) {
+
+      if (strlen(prefix)){
         strcpy(copied, prefix);
-        copied[strlen(prefix)] = '/';
-        strcpy(&copied[strlen(prefix) + 1], name); /* THIS LINE */
-        copied[strlen(name) + strlen(prefix) + 1] = '\0';
+        strcat(copied, "/");
+        strcpy(copied, name);
+        copied[strlen(prefix) + strlen(name) + 1] = NULL;
 
+      } else{
+        strcpy(copied, name);
+        copied[strlen(name)] = NULL;
       }
-      /* Gives execute permissions for all if any have it */
-      value = strtol(mode, &eptr, LIST_PERMISSIONS);
-      if (value % 2 || (value / 10) % 2 || (value / 100) % 2){
-        fail = mkdir(copied, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP 
-        | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
-      } else {
-        fail = mkdir(copied, S_IRUSR | S_IWUSR | S_IRGRP 
-        | S_IWGRP | S_IROTH | S_IWOTH);
+
+
+      strncpy(path_buffer, path[i], strlen(copied));
+      path_buffer[strlen(copied)] = NULL;
+      if (!strcmp(path_buffer, copied)){
+        
+        /* Gives execute permissions for all if any have it */
+        fail = mkdir(path_buffer, S_IRUSR | S_IWUSR
+        | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP 
+        | S_IROTH | S_IWOTH | S_IXOTH);
+        
+        /*if (fail < 0){
+          printf(stderr, "Mkdir failed.\n");
+          exit(EXIT_FAILURE);
+        }*/
       }
-      /*if (fail < 0){
-        printf(stderr, "Mkdir failed.\n");
-        exit(EXIT_FAILURE);
-      }*/
     }
-
   }
-  if (strlen(prefix)){
-    free(name);
-  }
+  
+  /*free(copied);*/
+  free(name);
   free(mode);
   free(uid);
   free(gid);
@@ -717,6 +728,7 @@ char** path, int num_p) {
   free(devminor);
   free(prefix);
   free(output);
+  free(size_buff);
   free(copied);
   free(buffer);
   free(ubuf);
@@ -731,7 +743,7 @@ int ttar(char *arguments[], int argc, int vFlag, int SFlag) {
   /* Check to make sure this is how you can open tar_file */
   int tar_file = open(arguments[2], O_RDONLY | O_CREAT,
    S_IRUSR | S_IWUSR | S_IROTH | S_IWOTH);
-  int offset;
+  int offset, i;
   if (tar_file < 0){
     printf("File unable to be opened.\n");
     exit(EXIT_FAILURE);
@@ -744,18 +756,18 @@ int ttar(char *arguments[], int argc, int vFlag, int SFlag) {
   /*Recursively run through tree within archive  */
   if (argc <= 3){
     while (NotatEnd(tar_file)){
-      offset = lseek(tar_file, TWOBLOCKS, SEEK_CUR);
+      offset = lseek(tar_file, -1024, SEEK_CUR);
       if (offset < 0){
-        fprintf(stderr, "Lseek error %d.\n", offset);
+        printf(stderr, "Lseek error %d.\n", offset);
       }
       trecurse_through_path(tar_file, vFlag, 0, argc, NULL);
     }
   } else {
   
     while (NotatEnd(tar_file)){
-      offset = lseek(tar_file, TWOBLOCKS, SEEK_CUR);
+      offset = lseek(tar_file, -1024, SEEK_CUR);
       if (offset < 0){
-        fprintf(stderr, "Lseek error %d.\n", offset);
+        printf(stderr, "Lseek error %d.\n", offset);
       }
       trecurse_through_path(tar_file, vFlag, 1, argc, arguments);
     }
@@ -769,64 +781,64 @@ int ttar(char *arguments[], int argc, int vFlag, int SFlag) {
 int trecurse_through_path(int tar_file, int verbose, 
 int is_path, int argc, char** path){
   /* Declares Variables */
-  char *eptr;
-  char *output = (char*)malloc(sizeof(char) * ALPHABET);
-  char *size_buff = (char*)malloc(sizeof(char) * LIST_SIZE);
-  char typ;
+  char *delete_block, *eptr, *writer;
+  char *output = (char*)malloc(sizeof(char) * 356);
+  char *size_buff = (char*)malloc(sizeof(char) * 8);
+  char typ, *beginning_name;
   time_t calendar_time;
   struct tm *local;
   long value;
-  int fail, i, path_length, name_length, prefix_length, mask;
+  int fail, i, path_length, name_length, prefix_length, times, mask;
   int is_in_path = 0;
-  char *name = (char*)malloc(sizeof(char) * (NAME_LENGTH + 1));
-  char *mode = (char*)malloc(sizeof(char) * MODE_LENGTH);
-  char *uid = (char*)malloc(sizeof(char) * UID_LENGTH);
-  char *gid = (char*)malloc(sizeof(char) * GID_LENGTH);
-  char *size = (char*)malloc(sizeof(char) * SIZE_LENGTH);
-  char *mtime = (char*)malloc(sizeof(char) * MTIME_LENGTH);
-  char *checksum = (char*)malloc(sizeof(char) * CHKSUM_LENGTH);
+  char *name = (char*)malloc(sizeof(char) * 101);
+  char *mode = (char*)malloc(sizeof(char) * 8);
+  char *uid = (char*)malloc(sizeof(char) * 8);
+  char *gid = (char*)malloc(sizeof(char) * 8);
+  char *size = (char*)malloc(sizeof(char) * 12);
+  char *mtime = (char*)malloc(sizeof(char) * 12);
+  char *checksum = (char*)malloc(sizeof(char) * 8);
   char *type = (char*)malloc(sizeof(char));
-  char *linkname = (char*)malloc(sizeof(char) * LINKNAME_LENGTH);
-  char *magic = (char*)malloc(sizeof(char) * MAGIC_LENGTH);
-  char *version = (char*)malloc(sizeof(char) * VERSION_LENGTH);
-  char *uname= (char*)malloc(sizeof(char) * UNAME_LENGTH);
-  char *gname = (char*)malloc(sizeof(char) * GNAME_LENGTH);
-  char *devmajor = (char*)malloc(sizeof(char) * DEVMAJOR_LENGTH);
-  char *devminor = (char*)malloc(sizeof(char) * DEVMINOR_LENGTH);
-  char *prefix = (char*)malloc(sizeof(char) * (PREFIX_LENGTH + 1));
-  char *excess = (char*)malloc(sizeof(char) * EXCESS_LENGTH);
-  char *copied = (char*)malloc(sizeof(char) * MAX_PATH);
+  char *linkname = (char*)malloc(sizeof(char) * 100);
+  char *magic = (char*)malloc(sizeof(char) * 6);
+  char *version = (char*)malloc(sizeof(char) * 2);
+  char *uname= (char*)malloc(sizeof(char) * 32);
+  char *gname = (char*)malloc(sizeof(char) * 32);
+  char *devmajor = (char*)malloc(sizeof(char) * 8);
+  char *devminor = (char*)malloc(sizeof(char) * 8);
+  char *prefix = (char*)malloc(sizeof(char) * 156);
+  char *excess = (char*)malloc(sizeof(char) * 12);
+  char *copied = (char*)malloc(sizeof(char) * 256);
 
-  read(tar_file, name, NAME_LENGTH);
-  read(tar_file, mode,  MODE_LENGTH);
-  read(tar_file, uid,  UID_LENGTH);
-  read(tar_file, gid,  GID_LENGTH);
-  read(tar_file, size, SIZE_LENGTH);
-  read(tar_file, mtime, MTIME_LENGTH);
-  read(tar_file, checksum, CHKSUM_LENGTH);
-  read(tar_file, type, TYPE_LENGTH);
-  read(tar_file, linkname, LINKNAME_LENGTH);
-  read(tar_file, magic, MAGIC_LENGTH);
-  read(tar_file, version, VERSION_LENGTH);
-  read(tar_file, uname, UNAME_LENGTH);
-  read(tar_file, gname, GNAME_LENGTH);
-  read(tar_file, devmajor, DEVMAJOR_LENGTH);
-  read(tar_file, devminor, DEVMINOR_LENGTH);
-  read(tar_file, prefix, PREFIX_LENGTH);
-  read(tar_file, excess, EXCESS_LENGTH);
+  read(tar_file, name, 100);
+  read(tar_file, mode,  8);
+  read(tar_file, uid,  8);
+  read(tar_file, gid,  8);
+  read(tar_file, size, 12);
+  read(tar_file, mtime, 12);
+  read(tar_file, checksum, 8);
+  read(tar_file, type, 1);
+  read(tar_file, linkname, 100);
+  read(tar_file, magic, 6);
+  read(tar_file, version, 2);
+  read(tar_file, uname, 32);
+  read(tar_file, gname, 32);
+  read(tar_file, devmajor, 8);
+  read(tar_file, devminor, 8);
+  read(tar_file, prefix, 155);
+  read(tar_file, excess, 12);
   free(excess);
 
-  magic[MAGIC_LENGTH - 1] = '\0';
+  magic[5] = NULL;
   if (strcmp(magic, "ustar")){
     perror("Bad tar file, listing.\n");
     exit(EXIT_FAILURE);
   }
 
-  name[NAME_LENGTH] = '\0';
-  prefix[PREFIX_LENGTH] = '\0';
+  name[100] = NULL;
+  prefix[155] = NULL;
 
   if (is_path){
-    for (i = ARGV_FIRST_PATH_INDEX; i < argc; i++){
+    for (i = 3; i < argc; i++){
       path_length = strlen(path[i]);
       name_length = strlen(name);
       /* Come back to this */
@@ -862,11 +874,11 @@ int is_path, int argc, char** path){
       /* PERMISSIONS */
       /* Get type for permissions */
       typ = type[0];
-      if (typ == LINKTYPEFLAG){
+      if (typ == '2'){
         /* Symbolic Link type */
         write(STDOUT_FILENO, "l", 1);
 
-      } else if (typ == DIRTYPEFLAG){
+      } else if (typ == '5'){
         /* Directory type */
         write(STDOUT_FILENO, "d", 1);
 
@@ -903,24 +915,24 @@ int is_path, int argc, char** path){
       write(STDOUT_FILENO, " ", 1);
 
       /* OWNER / GROUP NAMES */
-      i = snprintf(output, LIST_OW_GR, "%s/%s", uname, gname);
-      output[LIST_OW_GR] = '\0';
+      i = snprintf(output, 17, "%s/%s", uname, gname);
+      output[17] = NULL;
       i = strlen(output);
       fail = write(STDOUT_FILENO, output, i);
-      for(; i < LIST_OW_GR + 1; i++){
+      for(; i < 18; i++){
         write(STDOUT_FILENO, " ", 1);
       }
       if (fail < 0){
-        fprintf(stderr, "Write failed.\n");
+        printf(stderr, "Write failed.\n");
         exit(EXIT_FAILURE);
       }
 
     /* SIZE */
     /* Convert from octal to int and then
     prints them out in 8 characters */
-    value = strtol(size, &eptr, LIST_SIZE);
-    snprintf(size, LIST_SIZE + 1, "%8ld", value);
-    write(STDOUT_FILENO, size, LIST_SIZE);
+    value = strtol(size, &eptr, 8);
+    snprintf(size, 9, "%8d", value);
+    write(STDOUT_FILENO, size, 8);
     write(STDOUT_FILENO, " ", 1);
 
 
@@ -928,48 +940,48 @@ int is_path, int argc, char** path){
     value = strtol(mtime, &eptr, 8);
     calendar_time = value;
     local = localtime(&calendar_time);
-    strftime(output, MTIME_LENGTH + 6, "%Y-%m-%d %H:%M ", local);
+    strftime(output, 18, "%Y-%m-%d %H:%M ", local);
     write(STDOUT_FILENO, output, 17);
 
 
     } else {
 
-      value = strtol(size, &eptr, LIST_SIZE);
-      snprintf(size, LIST_SIZE + 1, "%8ld", value);
+      value = strtol(size, &eptr, 8);
+      snprintf(size, 9, "%8d", value);
     }
 
     /* Name */
     if (strlen(prefix) == 0){
-      i = snprintf(output, NAME_LENGTH + 1, "%s", name);
-      output[NAME_LENGTH + 1] = '\0';
+      i = snprintf(output, 101, "%s", name);
+      output[101] = NULL;
       write(STDOUT_FILENO, output, strlen(output));
     } else {
-      i = snprintf(output, PREFIX_LENGTH + 1, "%s", prefix);
-      output[PREFIX_LENGTH + 1] = '\0';
+      i = snprintf(output, 156, "%s", prefix);
+      output[156] = NULL;
       write(STDOUT_FILENO, output, strlen(output));
       write(STDOUT_FILENO, "/", 1);
-      i = snprintf(output, NAME_LENGTH + 1, "%s", name);
-      output[NAME_LENGTH + 1] = '\0';
+      i = snprintf(output, 101, "%s", name);
+      output[101] = NULL;
       write(STDOUT_FILENO, output, strlen(output));
     }
     write(STDOUT_FILENO, "\n", 1);
 
     
   } else {
-    value = strtol(size, &eptr, LIST_SIZE);
-    snprintf(size, LIST_SIZE + 1, "%8ld", value);
+    value = strtol(size, &eptr, 8);
+    snprintf(size, 9, "%8d", value);
   }
   /* SIZE */
   /* Convert from octal to int and then
    prints them out in 8 characters */
-  value = strtol(size, &eptr, LIST_SIZE);
+  value = strtol(size, &eptr, 10);
 
   /* Read out contents into nowhere */
-  value /= BLOCK;
-  if (type[0] != LINKTYPEFLAG && type[0] != DIRTYPEFLAG){
+  value /= 512;
+  if (type[0] != '2' && type[0] != '5'){
     value += 1;
   }
-  lseek(tar_file, BLOCK * value, SEEK_CUR);
+  lseek(tar_file, 512 * value, SEEK_CUR);
 
   free(name);
   free(mode);
@@ -997,15 +1009,15 @@ int is_path, int argc, char** path){
 /* Function to see if we're at the end */
 int NotatEnd(int tar_file){
   
-  char *two_blocks = (char *)malloc(sizeof(char) * (BLOCK * 2));
+  char *two_blocks = (char *)malloc(sizeof(char) * 1024);
   int fail, i;
   int allZero = 0;
-  fail = read(tar_file, two_blocks, (BLOCK * 2));
+  fail = read(tar_file, two_blocks, 1024);
   if (fail < 0){
     printf("Read failed.\n");
     exit(EXIT_FAILURE);
   }
-  for (i = 0; i < (BLOCK * 2) && !allZero; i++){
+  for (i = 0; i < 1024 && !allZero; i++){
     allZero |= two_blocks[i];
   }
 
@@ -1016,4 +1028,3 @@ int NotatEnd(int tar_file){
 
 }
  
-
