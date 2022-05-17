@@ -64,6 +64,7 @@ int main(int argc, char *argv[]) {
     perror("Usage: mytar [ctxvS]f tarfile\n");
     exit(-1);
   }
+  /* if write f, v, S multiple times */
   if((f - 1 > 0) || (v - 1 > 0) || (S- 1 > 0)) {
     perror("Only choose one for -v, -S, and -f\n"); 
     perror("Usage: mytar [ctxvS]f tarfile\n");
@@ -121,6 +122,7 @@ void ctar(int argc, char *argv[], int v, int S) {
     exit(-1);
   }
 
+  /* closing tarfile */
   if(close(output) == -1){
     perror("close");
     exit(-1);
@@ -152,35 +154,31 @@ void readCPath(char *path, int output, int v, int S){
   if(S_ISREG(lst_b.st_mode)) {
     createHeader(REGTYPEFLAG, lst_b, path, output, v, S);
   }
-  /* Regular file sym link condition */
-  else if(S_ISLNK(lst_b.st_mode) && S_ISREG(st_b.st_mode)){
+  /* Sym link condition */
+  else if(S_ISLNK(lst_b.st_mode)){
     createHeader(LINKTYPEFLAG, lst_b, path, output, v, S); 
   }
   /* Directory condition */
   else if(S_ISDIR(st_b.st_mode)){
-    /* Sym Link Directory */
-    if(S_ISLNK(lst_b.st_mode)){ 
-      createHeader(LINKTYPEFLAG, lst_b, path, output, v, S); 
-    } else {
-      strcat(path, "/");
-      createHeader(DIRTYPEFLAG, st_b, path,  output, v, S);
-      if((d = opendir(path)) == NULL) {
-        perror("open");
-        exit(-1);
-      }
+    strcat(path, "/");
+    createHeader(DIRTYPEFLAG, st_b, path,  output, v, S);
+    if((d = opendir(path)) == NULL) {
+      perror("open");
+      exit(-1);
+    }
 
-      /* now looping through dir to call readCPath on it and all its files */
-      while((entry = readdir(d)) != NULL) {
-        if(strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")){
-          strcpy(cur_path, path);
-          strcat(cur_path, entry->d_name);
-          readCPath(cur_path, output, v, S); 
-        }
+    /* now looping through dir to call readCPath on it and all its files */
+    while((entry = readdir(d)) != NULL) {
+      if(strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")){
+        strcpy(cur_path, path);
+        strcat(cur_path, entry->d_name);
+        readCPath(cur_path, output, v, S); 
       }
-      if(closedir(d) == -1){
-        perror("close");
-        exit(-1);
-      }
+    }
+
+    if(closedir(d) == -1){
+      perror("close");
+      exit(-1);
     }
   }
   else{
@@ -188,14 +186,13 @@ void readCPath(char *path, int output, int v, int S){
     perror("Mytar only supports regular files");
     perror(", directories, or sym links.\n");
   }
- 
 }  
 
 /* Using given path, takes all data and puts it into a struct */
 /* struct that's a header- where we fill in the correct information */
 /* at end of header format it and place it into the tar file */
 void createHeader(char typeflag, struct stat sb,
- char *path, int output, int v, int S){
+    char *path, int output, int v, int S){
   header_struct header;
   struct passwd *pw;
   struct group *grp;
@@ -214,7 +211,8 @@ void createHeader(char typeflag, struct stat sb,
 
   /*fill header with correct stuff */
   memset(&header, 0, BLOCK);
-  /* Name */ 
+  
+  /* Name and Prefix */ 
   if(strlen(path) <= NAME_LENGTH) {
     memcpy(header.name, path, strlen(path)); 
   }
@@ -223,7 +221,6 @@ void createHeader(char typeflag, struct stat sb,
     return;
   }
   else {
-    /*look over this!*/
     /* j is index that we have the slash */
     i = strlen(path) - 1;
     path_help = path + i; 
@@ -247,6 +244,7 @@ void createHeader(char typeflag, struct stat sb,
   
   /* Mode */
   snprintf(header.mode, MODE_LENGTH, "%07o", sb.st_mode & FILLED_UMASK);
+  
   /* Uid */
   if(sb.st_uid <= MAX_ID) {
     if(S) {
@@ -277,8 +275,6 @@ void createHeader(char typeflag, struct stat sb,
     }
   }
 
-  /* chksum first filled with spaces */
-  snprintf(header.chksum, CHKSUM_LENGTH, "        ");
   /* Size */
   if(S_ISREG(sb.st_mode)) {
     if(sb.st_size > MAX_SIZE) {
@@ -294,9 +290,11 @@ void createHeader(char typeflag, struct stat sb,
   else {
     snprintf(header.size, SIZE_LENGTH, "%011o", 0);
   }
+
   /* Mtime */
   snprintf(header.mtime, MTIME_LENGTH, "%011o", (int)sb.st_mtime);
   header.typeflag = typeflag;
+
   /* Linkname */
   if(S_ISLNK(sb.st_mode)) {
     if(readlink(path, header.linkname, LINKNAME_LENGTH) < 0){
@@ -304,16 +302,17 @@ void createHeader(char typeflag, struct stat sb,
       return;
     }
   }
+
   /* Ustar and version */
   strcpy(header.magic, "ustar"); 
   header.version[0] = '0';
   header.version[1] = '0';
+
   /* Uname */
   if((pw = getpwuid(sb.st_uid)) == NULL) {
     perror("Issue with getpwuid of the uname.\n");
     return;
   }
-
   if(strlen(pw->pw_name) < UNAME_LENGTH) {
     memcpy(header.uname, pw->pw_name, strlen(pw->pw_name));
   }
@@ -326,7 +325,6 @@ void createHeader(char typeflag, struct stat sb,
     perror("Issue with getgruid of the gname.\n");
     return;
   }
-
   if(strlen(grp->gr_name) < GNAME_LENGTH) {
     memcpy(header.gname, grp->gr_name, strlen(grp->gr_name));
   }
@@ -418,7 +416,7 @@ int insert_special_int(char *where, size_t size, int32_t val) {
     /* place the int */
     *where |= 0x80; /* set that high–order bit */
   }
-return err;
+  return err;
 }
 
 int xtar(char *arguments[], int argc, int v, int S) {
