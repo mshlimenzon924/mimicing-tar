@@ -1,3 +1,6 @@
+/* Header file for mytar. 
+   By Mira Shlimenzon and Emma Kester */
+
 #ifndef MYTAR
 #define MYTAR
 
