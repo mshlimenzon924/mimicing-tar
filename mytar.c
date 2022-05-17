@@ -523,7 +523,7 @@ char** path, int num_p) {
         if(strlen(name) >= strlen(path[i]) ){
           strncpy(copied, name, strlen(path[i]));
           copied[strlen(path[i])] = '\0';
-          if(is_in_path == !strcmp(copied, path[i])){
+          if(is_in_path = !strcmp(copied, path[i])){
             break;
           }
 
@@ -539,7 +539,7 @@ char** path, int num_p) {
           strncpy(&copied[strlen(prefix) + 1], name, 
           strlen(path[i]) - (strlen(prefix)+1));
           copied[strlen(path[i])] = '\0';
-          if (is_in_path == !strcmp(copied, path[i])){
+          if (is_in_path = !strcmp(copied, path[i])){
             break;
           }
         }
@@ -668,7 +668,7 @@ char** path, int num_p) {
 
   } else if (type[0] == DIRTYPEFLAG){
     /* If its a directory we need to create for the path */
-    strncpy(path_buffer, *path, strlen(copied));
+    strncpy(path_buffer, path, strlen(copied));
     if (!strcmp(path_buffer, copied)){
       if (!strlen(prefix)){
         free(copied);
@@ -842,13 +842,8 @@ int is_path, int argc, char** path){
         } else {
           strncpy(copied, name, path_length);
         }
-<<<<<<< HEAD
         copied[path_length] = NULL;
         /*fprintf(stdout, "%s\n", copied);*/
-=======
-        copied[path_length] = '\0';
-
->>>>>>> 1f514cab31023c4ff23f439dfb802f6c9c38ad54
         if (strcmp(copied, path[i]) == 0){
           is_in_path = 1;
         }
@@ -933,7 +928,7 @@ int is_path, int argc, char** path){
     value = strtol(mtime, &eptr, 8);
     calendar_time = value;
     local = localtime(&calendar_time);
-    strftime(output, MTIME + 2, "%Y-%m-%d %H:%M ", local);
+    strftime(output, MTIME_LENGTH + 6, "%Y-%m-%d %H:%M ", local);
     write(STDOUT_FILENO, output, 17);
 
 
