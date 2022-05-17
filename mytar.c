@@ -446,9 +446,9 @@ int xtar(char *arguments[], int argc, int v, int S) {
   }
 
   /* Recursively run through tree within archive  */
-  is_path = (argc <= 3)? 0: 1;
+  is_path = (argc <= ARGV_FIRST_PATH_INDEX)? 0: 1;
   while (NotatEnd(tar_file)){
-    offset = lseek(tar_file, -1024, SEEK_CUR);
+    offset = lseek(tar_file, TWOBLOCKS, SEEK_CUR);
     if (offset < 0){
       fprintf(stderr, "Lseek error %d.\n", offset);
     }
@@ -459,124 +459,122 @@ int xtar(char *arguments[], int argc, int v, int S) {
   return 0;
 }
 
-/* DO I NEED STRCPY CHECKS */
-
 /* Goes through given header and extracts file */
 int xtar_recurse(int tar_file, int verbose, int is_path, 
 char** path, int num_p) {
 
   /* Declares Variables */
   char *eptr;
-  char *output = (char*)malloc(sizeof(char) * 356);
-  char *size_buff = (char*)malloc(sizeof(char) * 8);
+  char *output = (char*)malloc(sizeof(char) * ALPHABET);
+  char *size_buff = (char*)malloc(sizeof(char) * LIST_SIZE);
   long value;
   int fail, fd, i;
   int is_in_path = 0;
   header_struct *header = (header_struct*)calloc(1, sizeof(header_struct));
-  char *copied = (char*)malloc(sizeof(char) * 512);
-  char *buffer = (char *)malloc(sizeof(char) * 512);
-  char *path_buffer = (char *)malloc(sizeof(char) * 512);
+  char *copied = (char*)malloc(sizeof(char) * BLOCK);
+  char *buffer = (char *)malloc(sizeof(char) * BLOCK);
+  char *path_buffer = (char *)malloc(sizeof(char) * BLOCK);
   struct utimbuf *ubuf = 
   (struct utimbuf *)malloc(sizeof(struct utimbuf));
   struct stat *l_buffer = (struct stat *)malloc(sizeof(struct stat));
   
   /* Reads Header into header structure */
-  fail = read(tar_file, header->name, 100);
+  fail = read(tar_file, header->name, NAME_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->mode,  8);
+  fail = read(tar_file, header->mode,  MODE_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->uid,  8);
+  fail = read(tar_file, header->uid,  UID_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->gid,  8);
+  fail = read(tar_file, header->gid,  GID_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->size, 12);
+  fail = read(tar_file, header->size, SIZE_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->mtime, 12);
+  fail = read(tar_file, header->mtime, MTIME_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->chksum, 8);
+  fail = read(tar_file, header->chksum, CHKSUM_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, &(header->typeflag), 1);
+  fail = read(tar_file, &(header->typeflag), TYPE_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->linkname, 100);
+  fail = read(tar_file, header->linkname, LINKNAME_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->magic, 6);
+  fail = read(tar_file, header->magic, MAGIC_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->version, 2);
+  fail = read(tar_file, header->version, VERSION_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->uname, 32);
+  fail = read(tar_file, header->uname, UNAME_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->gname, 32);
+  fail = read(tar_file, header->gname, GNAME_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->devmajor, 8);
+  fail = read(tar_file, header->devmajor, DEVMAJOR_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->devminor, 8);
+  fail = read(tar_file, header->devminor, DEVMINOR_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->prefix, 155);
+  fail = read(tar_file, header->prefix, PREFIX_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->empty, 12);
+  fail = read(tar_file, header->empty, EXCESS_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
 
   /* Checks for valied header */
-  header->magic[5] = 0;
+  header->magic[MAGIC_LENGTH - 1] = 0;
   if (strcmp(header->magic, "ustar")){
     perror("Bad tar file, listing.\n");
     exit(EXIT_FAILURE);
   }
 
   /* Null terminated copied and prefix, if needed */
-  header->name[100] = 0;
-  header->prefix[155] = 0;
+  header->name[NAME_LENGTH] = 0;
+  header->prefix[PREFIX_LENGTH] = 0;
 
   /* If there's a given path, check to see if name matches */
   if (is_path){
@@ -585,7 +583,7 @@ char** path, int num_p) {
     if (strlen(header->prefix) == 0){
 
       /* Checks for match against each given name */
-      for (i = 3; i < num_p; i++){
+      for (i = ARGV_FIRST_PATH_INDEX; i < num_p; i++){
         /* Makes sure name is bigger or equal before checking */
         if (strlen(header->name) >= strlen(path[i]) ){
           strncpy(copied, header->name, strlen(path[i]));
@@ -597,7 +595,7 @@ char** path, int num_p) {
         }
       }
     } else {
-      for (i = 3; i < num_p; i++){
+      for (i = ARGV_FIRST_PATH_INDEX; i < num_p; i++){
         /* Same functionality as above but concatenates prefix / name */
         if (strlen(header->name) + 
         strlen(header->prefix) + 1 >= strlen(path[i])){
@@ -619,7 +617,7 @@ char** path, int num_p) {
   if (!is_path || is_in_path){
 
     /* Differentiates based on if its a file, dir, or symlink */
-    if (header->typeflag == '5'){
+    if (header->typeflag == DIRTYPEFLAG){
       
       /* If its a directory */
         if (!strlen(header->prefix)){
@@ -641,9 +639,9 @@ char** path, int num_p) {
         | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
 
 
-    } else if (header->typeflag == '2'){
+    } else if (header->typeflag == LINKTYPEFLAG){
       /* If its a link */
-      header->linkname[100] = 0;
+      header->linkname[LINKNAME_LENGTH] = 0;
       if (strlen(header->prefix) == 0){
         /* If there's no prefix */
         fail = symlink(header->linkname, header->name);
@@ -703,13 +701,13 @@ char** path, int num_p) {
       reads contents into the new file */
       value = strtol(header->size, &eptr, 8);
       while (value > 0){
-        fail = read(tar_file, buffer, 512);
+        fail = read(tar_file, buffer, BLOCK);
         if (fail < 0){
           fprintf(stderr, "Read failed.\n");
           exit(EXIT_FAILURE);
         }
-        if (value >= 512){
-          fail = write(fd, buffer, 512);
+        if (value >= BLOCK){
+          fail = write(fd, buffer, BLOCK);
         } else {
           fail = write(fd, buffer, value);
         }
@@ -744,9 +742,9 @@ char** path, int num_p) {
     /* If its a file, but its not within the path 
     we still read out contents */
     value = strtol(header->size, &eptr, 8);
-    value = value / 512 + 1;
+    value = value / BLOCK + 1;
     for (i = 0; i < value; i++){
-      fail = lseek(tar_file, 512, SEEK_CUR);
+      fail = lseek(tar_file, BLOCK, SEEK_CUR);
       if (fail < 0){
         fprintf(stderr, "Lseek failed.\n");
         exit(EXIT_FAILURE);
@@ -756,7 +754,7 @@ char** path, int num_p) {
   } else if (header->typeflag == '5'){
     /* If its a directory we need to create for the path, but
     not at end of path */
-    for (i = 3; i < num_p; i++) {
+    for (i = ARGV_FIRST_PATH_INDEX; i < num_p; i++) {
 
       if (strlen(header->prefix)){
         strcpy(copied, header->prefix);
@@ -781,7 +779,8 @@ char** path, int num_p) {
       }
     }
   }
-  /* free copiedddd */
+  
+  /* Frees everything and returns without errors */
   free(output);
   free(size_buff);
   free(copied);
@@ -789,6 +788,7 @@ char** path, int num_p) {
   free(ubuf);
   free(l_buffer);
   free(path_buffer);
+  free(header);
   
   return 0;
 }
@@ -807,10 +807,10 @@ int ttar(char *arguments[], int argc, int vFlag, int SFlag) {
   }
 
   /* Goes through paths given on command line, looping through each header */
-  is_path = (argc <= 3)? 0: 1;
+  is_path = (argc <= ARGV_FIRST_PATH_INDEX)? 0: 1;
   
   while (NotatEnd(tar_file)){
-    offset = lseek(tar_file, -1024, SEEK_CUR);
+    offset = lseek(tar_file, TWOBLOCKS, SEEK_CUR);
     if (offset < 0){
       fprintf(stderr, "Lseek error %d.\n", offset);
     }
@@ -827,117 +827,117 @@ int is_path, int argc, char** path){
 
   /* Declares Variables */
   char *eptr;
-  char *output = (char*)malloc(sizeof(char) * 356);
-  char *size_buff = (char*)malloc(sizeof(char) * 8);
+  char *output = (char*)malloc(sizeof(char) * ALPHABET);
+  char *size_buff = (char*)malloc(sizeof(char) * LIST_SIZE);
   time_t calendar_time;
   struct tm *local;
   long value;
   int fail, i, path_length, name_length, prefix_length, mask;
   int is_in_path = 0;
   header_struct *header = (header_struct*)malloc(sizeof(header_struct));
-  char *copied = (char*)malloc(sizeof(char) * 256);
+  char *copied = (char*)malloc(sizeof(char) * BLOCK);
 
   /* Reads Header into header structure */
-  fail = read(tar_file, header->name, 100);
+  fail = read(tar_file, header->name, NAME_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->mode,  8);
+  fail = read(tar_file, header->mode,  MODE_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->uid,  8);
+  fail = read(tar_file, header->uid,  UID_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->gid,  8);
+  fail = read(tar_file, header->gid,  GID_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->size, 12);
+  fail = read(tar_file, header->size, SIZE_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->mtime, 12);
+  fail = read(tar_file, header->mtime, MTIME_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->chksum, 8);
+  fail = read(tar_file, header->chksum, CHKSUM_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, &(header->typeflag), 1);
+  fail = read(tar_file, &(header->typeflag), TYPE_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->linkname, 100);
+  fail = read(tar_file, header->linkname, LINKNAME_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->magic, 6);
+  fail = read(tar_file, header->magic, MAGIC_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->version, 2);
+  fail = read(tar_file, header->version, VERSION_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->uname, 32);
+  fail = read(tar_file, header->uname, UNAME_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->gname, 32);
+  fail = read(tar_file, header->gname, GNAME_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->devmajor, 8);
+  fail = read(tar_file, header->devmajor, DEVMAJOR_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->devminor, 8);
+  fail = read(tar_file, header->devminor, DEVMINOR_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->prefix, 155);
+  fail = read(tar_file, header->prefix, PREFIX_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
-  fail = read(tar_file, header->empty, 12);
+  fail = read(tar_file, header->empty, EXCESS_LENGTH);
   if (fail < 0){
     fprintf(stderr, "Invalid read.\n");
     exit(EXIT_FAILURE);
   }
 
   /* Checks for valid header */
-  header->magic[5] = 0;
+  header->magic[MAGIC_LENGTH - 1] = 0;
   if (strcmp(header->magic, "ustar")){
     perror("Bad tar file, listing.\n");
     exit(EXIT_FAILURE);
   }
 
   /* Null terminates name and prefix if needed */
-  header->name[100] = 0;
-  header->prefix[155] = 0;
+  header->name[NAME_LENGTH] = 0;
+  header->prefix[PREFIX_LENGTH] = 0;
 
   /* If there is a path, check if current header is in it */
   if (is_path){
-    for (i = 3; i < argc; i++){
+    for (i = ARGV_FIRST_PATH_INDEX; i < argc; i++){
       /* Gets lengths */
       path_length = strlen(path[i]);
       name_length = strlen(header->name);
@@ -949,9 +949,8 @@ int is_path, int argc, char** path){
         if (prefix_length != 0){
           /* If prefix is not empty */
           strcpy(copied, header->prefix);
-          strcat(copied, "/");
-          strncpy(&copied[strlen(header->prefix) + 1], header->name, 
-          path_length -(prefix_length + 1));
+          strcpy(&copied[strlen(header->prefix)], "/");
+          strcpy(&copied[strlen(header->prefix) + 1], header->name);
         
         } else {
           /* If prefix is empty */
@@ -966,8 +965,6 @@ int is_path, int argc, char** path){
       }
     }
   }
-  /* Frees copied */
-  free(copied);
 
   /* If it doesn't have path requirements, or meets those requirements */
   if (!is_path || is_in_path){
@@ -977,7 +974,7 @@ int is_path, int argc, char** path){
 
       /* PERMISSIONS */
       /* Get type for permissions */
-      if (header->typeflag == '2'){
+      if (header->typeflag == LINKTYPEFLAG){
         /* Symbolic Link type */
         fail = write(STDOUT_FILENO, "l", 1);
         if (fail < 0){
@@ -985,7 +982,7 @@ int is_path, int argc, char** path){
           exit(EXIT_FAILURE);
         }
 
-      } else if (header->typeflag == '5'){
+      } else if (header->typeflag == DIRTYPEFLAG){
         /* Directory type */
         fail = write(STDOUT_FILENO, "d", 1);
         if (fail < 0){
@@ -1003,8 +1000,9 @@ int is_path, int argc, char** path){
       }
 
       /* Convert mode octal string to permissions */
+      /* 0-7 represent possible octal numbers */
       for (i = 4; i < 7; i++){
-        mask = header->mode[i] - 48;
+        mask = header->mode[i] - ASCII;
 
         if (mask >= 4){
           fail = write(STDOUT_FILENO, "r", 1);
@@ -1057,15 +1055,15 @@ int is_path, int argc, char** path){
       }
 
       /* OWNER / GROUP NAMES */
-      i = snprintf(output, 17, "%s/%s", header->uname, header->gname);
-      output[17] = 0;
+      i = snprintf(output, LIST_OW_GR, "%s/%s", header->uname, header->gname);
+      output[LIST_OW_GR] = 0;
       i = strlen(output);
       fail = write(STDOUT_FILENO, output, i);
       if (fail < 0){
         fprintf(stderr, "Write failed.\n");
         exit(EXIT_FAILURE);
       }
-      for(; i < 18; i++){
+      for(; i < LIST_OW_GR + 1; i++){
         fail = write(STDOUT_FILENO, " ", 1);
         if (fail < 0){
           fprintf(stderr, "Write failed.\n");
@@ -1076,9 +1074,9 @@ int is_path, int argc, char** path){
     /* SIZE */
     /* Convert from octal to int and then
     prints them out in 8 characters */
-    value = strtol(header->size, &eptr, 8);
-    snprintf(header->size, 9, "%8ld", value);
-    fail = write(STDOUT_FILENO, header->size, 8);
+    value = strtol(header->size, &eptr, LIST_SIZE);
+    snprintf(header->size, LIST_SIZE + 1, "%8ld", value);
+    fail = write(STDOUT_FILENO, header->size, LIST_SIZE);
     if (fail < 0){
       fprintf(stderr, "Write failed.\n");
       exit(EXIT_FAILURE);
@@ -1094,7 +1092,7 @@ int is_path, int argc, char** path){
     value = strtol(header->mtime, &eptr, 8);
     calendar_time = value;
     local = localtime(&calendar_time);
-    strftime(output, 18, "%Y-%m-%d %H:%M ", local);
+    strftime(output, LIST_OW_GR+1, "%Y-%m-%d %H:%M ", local);
     fail = write(STDOUT_FILENO, output, 17);
     if (fail < 0){
       fprintf(stderr, "Write failed.\n");
@@ -1104,15 +1102,15 @@ int is_path, int argc, char** path){
     } else {
       /* If we did not select verbose, make sure size has been
       converted outof octal form */
-      value = strtol(header->size, &eptr, 8);
-      snprintf(header->size, 9, "%8ld", value);
+      value = strtol(header->size, &eptr, LIST_SIZE);
+      snprintf(header->size, LIST_SIZE+1, "%8ld", value);
     }
 
     /* NAME */
     if (strlen(header->prefix) == 0){
       /* If there's no prefix */
-      i = snprintf(output, 101, "%s", header->name);
-      output[101] = 0;
+      i = snprintf(output, NAME_LENGTH+1, "%s", header->name);
+      output[NAME_LENGTH+1] = 0;
       fail = write(STDOUT_FILENO, output, strlen(output));
       if (fail < 0){
         fprintf(stderr, "Write failed.\n");
@@ -1121,8 +1119,8 @@ int is_path, int argc, char** path){
 
     } else {
       /* If there is a prefix */
-      i = snprintf(output, 156, "%s", header->prefix);
-      output[156] = 0;
+      i = snprintf(output, PREFIX_LENGTH+1, "%s", header->prefix);
+      output[PREFIX_LENGTH+1] = 0;
       fail = write(STDOUT_FILENO, output, strlen(output));
       if (fail < 0){
         fprintf(stderr, "Write failed.\n");
@@ -1133,8 +1131,8 @@ int is_path, int argc, char** path){
         fprintf(stderr, "Write failed.\n");
         exit(EXIT_FAILURE);
       }
-      i = snprintf(output, 101, "%s", header->name);
-      output[101] = 0;
+      i = snprintf(output, NAME_LENGTH+1, "%s", header->name);
+      output[NAME_LENGTH+1] = 0;
       fail = write(STDOUT_FILENO, output, strlen(output));
       if (fail < 0){
         fprintf(stderr, "Write failed.\n");
@@ -1152,8 +1150,8 @@ int is_path, int argc, char** path){
 
     /* If file is not in the path, but we still need to
     convert size from octal format to know how much to read out */
-    value = strtol(header->size, &eptr, 8);
-    snprintf(header->size, 9, "%8ld", value);
+    value = strtol(header->size, &eptr, LIST_SIZE);
+    snprintf(header->size, LIST_SIZE+1, "%8ld", value);
   }
 
   /* SIZE */
@@ -1161,11 +1159,11 @@ int is_path, int argc, char** path){
   value = strtol(header->size, &eptr, 10);
 
   /* Read out contents into nowhere */
-  value /= 512;
+  value /= BLOCK;
   if (header->typeflag != '2' && header->typeflag != '5'){
     value += 1;
   }
-  fail = lseek(tar_file, 512 * value, SEEK_CUR);
+  fail = lseek(tar_file, BLOCK * value, SEEK_CUR);
   if (fail < 0){
     fprintf(stderr, "Lseek failed.\n");
     exit(EXIT_FAILURE);
@@ -1174,6 +1172,8 @@ int is_path, int argc, char** path){
   /* Frees and returns without errors */
   free(output);
   free(size_buff);
+  free(header);
+  free(copied);
   return 0;
 }
 
@@ -1182,19 +1182,19 @@ int is_path, int argc, char** path){
 int NotatEnd(int tar_file){
   
   /* Declares Variables */
-  char *two_blocks = (char *)malloc(sizeof(char) * 1024);
+  char *two_blocks = (char *)malloc(sizeof(char) * BLOCK * 2);
   int fail, i;
   int allZero = 0;
   
   /* Reads to blocks */
-  fail = read(tar_file, two_blocks, 1024);
+  fail = read(tar_file, two_blocks, BLOCK * 2);
   if (fail < 0){
     fprintf(stderr, "Read failed.\n");
     exit(EXIT_FAILURE);
   }
 
   /* If any single char is not zero, sets allZero to a non zero value */
-  for (i = 0; i < 1024 && !allZero; i++){
+  for (i = 0; i < BLOCK * 2 && !allZero; i++){
     allZero |= two_blocks[i];
   }
 
@@ -1202,4 +1202,3 @@ int NotatEnd(int tar_file){
   free(two_blocks);
   return allZero;
 }
- 

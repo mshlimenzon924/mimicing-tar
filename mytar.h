@@ -52,6 +52,7 @@
 #define LIST_OW_GR 17
 #define LIST_SIZE 8
 #define ARGV_FIRST_PATH_INDEX 3
+#define ASCII 48
 
 void ctar(int argc, char *argv[], int v, int S);
 void readCPath(char *path, int output, int v, int S);
